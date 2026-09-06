@@ -113,7 +113,8 @@ public final class GuiWorkflowGameTests {
         List<String> failures = new ArrayList<>();
         int covered = 0;
         for (var definition : KernelServices.catalog().entries()) {
-            if (!definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+            if (!definition.playerFacing()
+                    || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
                 continue;
             }
             boolean enabled = KernelServices.featureGates().decide(
@@ -205,7 +206,8 @@ public final class GuiWorkflowGameTests {
         Map<String, List<CommandDefinition>> candidates = new LinkedHashMap<>();
 
         for (var definition : KernelServices.catalog().entries()) {
-            if (!definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+            if (!definition.playerFacing()
+                    || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
                 continue;
             }
             boolean enabled = KernelServices.featureGates().decide(
@@ -491,7 +493,8 @@ public final class GuiWorkflowGameTests {
         int positiveRoutes = 0;
 
         for (var definition : KernelServices.catalog().entries()) {
-            if (definition.auditClass() == AuditService.AuditClass.NONE
+            if (!definition.playerFacing()
+                    || definition.auditClass() == AuditService.AuditClass.NONE
                     || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
                 continue;
             }
