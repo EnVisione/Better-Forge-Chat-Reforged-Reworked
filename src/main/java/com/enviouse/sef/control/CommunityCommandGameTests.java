@@ -324,6 +324,68 @@ public final class CommunityCommandGameTests {
         }
     }
 
+    @GameTest(template = "empty")
+    public static void queueCommandsPersistAndArchiveSubmittedRecords(GameTestHelper helper) {
+        ServerPlayer actor = helper.makeMockServerPlayerInLevel();
+        java.util.List<java.util.UUID> createdRecords = new java.util.ArrayList<>();
+        try {
+            int ticketResult = executeWithPermissions(
+                    helper,
+                    actor,
+                    "ticket audit ticket request");
+            helper.assertTrue(ticketResult > 0, "ticket submission did not report success");
+            var ticket = KernelServices.serverControls().recordsFor(actor.getUUID()).stream()
+                    .filter(record -> record.featureId().equals("tickets"))
+                    .findFirst()
+                    .orElse(null);
+            helper.assertTrue(ticket != null, "ticket submission did not persist a record");
+            helper.assertTrue(
+                    ticket.metadata().get("field.category").equals("support"),
+                    "ticket category was not persisted");
+            createdRecords.add(ticket.id());
+            CommandEffectEvidenceWriter.record(
+                    "sef:control.tickets.submit",
+                    "queueCommandsPersistAndArchiveSubmittedRecordsTicket",
+                    "success",
+                    true,
+                    true,
+                    "none");
+
+            int privacyResult = executeWithPermissions(
+                    helper,
+                    actor,
+                    "privacy request export audit privacy request");
+            helper.assertTrue(privacyResult > 0, "privacy request did not report success");
+            var privacy = KernelServices.serverControls().recordsFor(actor.getUUID()).stream()
+                    .filter(record -> record.featureId().equals("privacy"))
+                    .findFirst()
+                    .orElse(null);
+            helper.assertTrue(privacy != null, "privacy request did not persist a record");
+            helper.assertTrue(
+                    privacy.metadata().get("field.category").equals("export"),
+                    "privacy category was not persisted");
+            createdRecords.add(privacy.id());
+            CommandEffectEvidenceWriter.record(
+                    "sef:control.privacy.request",
+                    "queueCommandsPersistAndArchiveSubmittedRecordsPrivacy",
+                    "success",
+                    true,
+                    true,
+                    "none");
+            helper.succeed();
+        } finally {
+            for (java.util.UUID recordId : createdRecords) {
+                KernelServices.serverControls().find(recordId).ifPresent(record ->
+                        KernelServices.serverControls().transition(
+                                record.id(),
+                                actor.getUUID(),
+                                ServerControlRepository.RecordState.ARCHIVED,
+                                record.revision(),
+                                "audit cleanup"));
+            }
+        }
+    }
+
     private static int executeWithPermissions(
             GameTestHelper helper,
             ServerPlayer actor,
