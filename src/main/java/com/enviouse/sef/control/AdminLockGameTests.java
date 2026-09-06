@@ -98,6 +98,20 @@ public final class AdminLockGameTests {
                     "sef:adminlock.history",
                     "adminLockSessionPolicyAndRecoveryRoutesPersistEffects");
 
+            int requireResult = execute(helper, player, "adminlock require staff true", "require");
+            helper.assertTrue(requireResult > 0, "admin lock require command did not report success");
+            helper.assertTrue(
+                    KernelServices.adminLockRepository().requiredClasses()
+                            .contains(CommandDefinition.AccessClass.STAFF),
+                    "admin lock require command did not persist the required class");
+            CommandEffectEvidenceWriter.record(
+                    "sef:adminlock.require",
+                    "adminLockSessionPolicyAndRecoveryRoutesPersistEffects",
+                    "success",
+                    true,
+                    true,
+                    "none");
+
             int openResult = execute(
                     helper,
                     player,
@@ -122,20 +136,6 @@ public final class AdminLockGameTests {
                     "admin lock session close command did not clear the session");
             CommandEffectEvidenceWriter.record(
                     "sef:adminlock.session.close",
-                    "adminLockSessionPolicyAndRecoveryRoutesPersistEffects",
-                    "success",
-                    true,
-                    true,
-                    "none");
-
-            int requireResult = execute(helper, player, "adminlock require staff true", "require");
-            helper.assertTrue(requireResult > 0, "admin lock require command did not report success");
-            helper.assertTrue(
-                    KernelServices.adminLockRepository().requiredClasses()
-                            .contains(CommandDefinition.AccessClass.STAFF),
-                    "admin lock require command did not persist the required class");
-            CommandEffectEvidenceWriter.record(
-                    "sef:adminlock.require",
                     "adminLockSessionPolicyAndRecoveryRoutesPersistEffects",
                     "success",
                     true,
