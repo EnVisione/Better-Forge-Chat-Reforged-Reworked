@@ -17,15 +17,18 @@ import com.google.gson.JsonObject;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.time.Duration;
 import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.LinkedHashMap;
@@ -300,6 +303,11 @@ public final class GuiWorkflowGameTests {
                     continue;
                 }
                 JsonObject runtimeRow = new JsonObject();
+                boolean auditDurable = auditEventPersisted(server, event.eventId());
+                boolean actorAttributed = !event.actorUuid().isBlank()
+                        && !event.actorUsername().isBlank();
+                boolean correlationBound = !event.serverSessionId().isBlank()
+                        && !event.eventId().isBlank();
                 runtimeRow.addProperty("actionId", definition.id());
                 runtimeRow.addProperty("canonicalRoute", definition.canonicalRoute());
                 runtimeRow.addProperty("commandDigest", digest(command));
@@ -309,6 +317,9 @@ public final class GuiWorkflowGameTests {
                 runtimeRow.addProperty("auditResult", event.result());
                 runtimeRow.addProperty("auditClass", event.auditClass());
                 runtimeRow.addProperty("redactionClass", event.redactionClass());
+                runtimeRow.addProperty("auditDurable", auditDurable);
+                runtimeRow.addProperty("actorAttributed", actorAttributed);
+                runtimeRow.addProperty("correlationBound", correlationBound);
                 runtimeRows.add(runtimeRow);
                 // Some adapters intentionally return the domain count, which may be
                 // zero even though the shared lease completed successfully.
@@ -318,6 +329,9 @@ public final class GuiWorkflowGameTests {
                         || event.actorUsername().isBlank()
                         || event.serverSessionId().isBlank()
                         || event.eventId().isBlank()
+                        || !auditDurable
+                        || !actorAttributed
+                        || !correlationBound
                         || !resultProjectionMatches
                         || !definition.auditClass().name().toLowerCase(java.util.Locale.ROOT)
                                 .equals(event.auditClass())
@@ -420,6 +434,37 @@ public final class GuiWorkflowGameTests {
         } catch (java.security.NoSuchAlgorithmException exception) {
             throw new IllegalStateException("sha-256 is unavailable", exception);
         }
+    }
+
+    private static boolean auditEventPersisted(MinecraftServer server, String eventId) {
+        if (server == null || eventId == null) {
+            return false;
+        }
+        Path auditFile = server.getServerDirectory()
+                .resolve("serverconfig")
+                .resolve("sef")
+                .resolve("audit")
+                .resolve("security-audit.jsonl")
+                .toAbsolutePath()
+                .normalize();
+        String eventMarker = "\"eventId\":\"" + eventId + "\"";
+        for (int attempt = 0; attempt < 40; attempt++) {
+            try {
+                if (Files.isRegularFile(auditFile, LinkOption.NOFOLLOW_LINKS)
+                        && Files.readString(auditFile, StandardCharsets.UTF_8).contains(eventMarker)) {
+                    return true;
+                }
+            } catch (IOException ignored) {
+                // The writer may be rotating or flushing this bounded fixture file.
+            }
+            try {
+                Thread.sleep(5L);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
     }
 
     @GameTest(template = "empty", timeoutTicks = 500)
@@ -1137,6 +1182,11 @@ public final class GuiWorkflowGameTests {
                 boolean redactionSafe = event != null
                         && event.normalizedParameters().values().stream()
                                 .noneMatch(value -> value.contains(executedCommand));
+                boolean auditDurable = auditEventPersisted(server, event.eventId());
+                boolean actorAttributed = !event.actorUuid().isBlank()
+                        && !event.actorUsername().isBlank();
+                boolean correlationBound = !event.serverSessionId().isBlank()
+                        && !event.eventId().isBlank();
                 if (!"console".equals(event.sourceType())
                         || event.actorUuid().isBlank()
                         || event.actorUsername().isBlank()
@@ -1144,7 +1194,10 @@ public final class GuiWorkflowGameTests {
                         || !"success".equals(event.result())
                         || !"metadata_only".equals(event.auditClass())
                         || !"metadata".equals(event.redactionClass())
-                        || !redactionSafe) {
+                        || !redactionSafe
+                        || !auditDurable
+                        || !actorAttributed
+                        || !correlationBound) {
                     failures.add(definition.id() + ", " + command + ", unsafe argument audit projection, result "
                             + result + ", events " + events.size());
                     continue;
@@ -1160,6 +1213,9 @@ public final class GuiWorkflowGameTests {
                 runtimeRow.addProperty("auditClass", event.auditClass());
                 runtimeRow.addProperty("redactionClass", event.redactionClass());
                 runtimeRow.addProperty("redactionSafe", redactionSafe);
+                runtimeRow.addProperty("auditDurable", auditDurable);
+                runtimeRow.addProperty("actorAttributed", actorAttributed);
+                runtimeRow.addProperty("correlationBound", correlationBound);
                 runtimeRows.add(runtimeRow);
             }
         }
@@ -1432,6 +1488,11 @@ public final class GuiWorkflowGameTests {
                         && event.normalizedParameters().values().stream()
                                 .noneMatch(value -> !value.equals(definition.canonicalRoute())
                                         && value.contains(command));
+                boolean auditDurable = auditEventPersisted(server, event.eventId());
+                boolean actorAttributed = player.getUUID().toString().equals(event.actorUuid())
+                        && !event.actorUsername().isBlank();
+                boolean correlationBound = !event.serverSessionId().isBlank()
+                        && !event.eventId().isBlank();
                 if (!"player".equals(event.sourceType())
                         || !player.getUUID().toString().equals(event.actorUuid())
                         || player.getGameProfile().getName().isBlank()
@@ -1439,7 +1500,10 @@ public final class GuiWorkflowGameTests {
                         || !"success".equals(event.result())
                         || !"metadata_only".equals(event.auditClass())
                         || !"metadata".equals(event.redactionClass())
-                        || !redactionSafe) {
+                        || !redactionSafe
+                        || !auditDurable
+                        || !actorAttributed
+                        || !correlationBound) {
                     failures.add(definition.id() + ", " + command + ", unsafe player audit projection, source "
                             + event.sourceType() + ", actor " + event.actorUuid() + ", result "
                             + event.result() + ", class " + event.auditClass() + ", redaction "
@@ -1456,6 +1520,9 @@ public final class GuiWorkflowGameTests {
                 runtimeRow.addProperty("auditResult", event.result());
                 runtimeRow.addProperty("auditClass", event.auditClass());
                 runtimeRow.addProperty("redactionClass", event.redactionClass());
+                runtimeRow.addProperty("auditDurable", auditDurable);
+                runtimeRow.addProperty("actorAttributed", actorAttributed);
+                runtimeRow.addProperty("correlationBound", correlationBound);
                 runtimeRows.add(runtimeRow);
             }
 
