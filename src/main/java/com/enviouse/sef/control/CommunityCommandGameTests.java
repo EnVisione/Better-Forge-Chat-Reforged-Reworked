@@ -138,6 +138,37 @@ public final class CommunityCommandGameTests {
         }
     }
 
+    @GameTest(template = "empty")
+    public static void waypointGoTeleportsToPersistedLocation(GameTestHelper helper) {
+        ServerPlayer actor = helper.makeMockServerPlayerInLevel();
+        String name = "auditgo";
+        double savedX = actor.getX();
+        double savedY = actor.getY();
+        double savedZ = actor.getZ();
+
+        try {
+            int setResult = executeWithPermissions(helper, actor, "waypoint set " + name);
+            helper.assertTrue(setResult > 0, "waypoint setup did not report success");
+            actor.teleportTo(savedX + 8.0D, savedY, savedZ);
+
+            int goResult = executeWithPermissions(helper, actor, "waypoint go " + name);
+            helper.assertTrue(goResult > 0, "waypoint go did not report success");
+            helper.assertTrue(
+                    actor.distanceToSqr(savedX, savedY, savedZ) < 1.0D,
+                    "waypoint go did not teleport to the persisted location");
+            CommandEffectEvidenceWriter.record(
+                    "sef:control.waypoints.go",
+                    "waypointGoTeleportsToPersistedLocation",
+                    "success",
+                    actor.distanceToSqr(savedX, savedY, savedZ) < 1.0D,
+                    true,
+                    "none");
+            helper.succeed();
+        } finally {
+            KernelServices.communityState().remove("waypoint", actor.getUUID(), name);
+        }
+    }
+
     private static int executeWithPermissions(
             GameTestHelper helper,
             ServerPlayer actor,
