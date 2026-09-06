@@ -69,6 +69,13 @@ public final class SudoGameTests {
         helper.assertTrue(
                 !service.sudoRun(initiator, target, command).successful(),
                 "respect mode bypassed the target permission");
+        CommandEffectEvidenceWriter.record(
+                "sef:sudo.run",
+                "effectRequiresRealPermissionOrOneExactDelegatedGrant",
+                "failure",
+                false,
+                true,
+                "permission_denied");
 
         var preview = service.previewDelegated(initiator, target, command);
         helper.assertTrue(preview.successful(), "effect delegation preview was rejected");
