@@ -1421,11 +1421,17 @@ public final class GuiWorkflowGameTests {
                                         && !before.contains(event.eventId()),
                                 16);
                 var event = events.stream().findFirst().orElse(null);
+                if (event == null || events.size() != 1) {
+                    failures.add(definition.id() + ", " + command + ", positive player route missing one audit event");
+                    continue;
+                }
+                if (!"success".equals(event.result())) {
+                    continue;
+                }
                 boolean redactionSafe = event != null
                         && event.normalizedParameters().values().stream()
                                 .noneMatch(value -> value.contains(command));
-                if (event == null || events.size() != 1
-                        || !"player".equals(event.sourceType())
+                if (!"player".equals(event.sourceType())
                         || !player.getUUID().toString().equals(event.actorUuid())
                         || player.getGameProfile().getName().isBlank()
                         || !player.getGameProfile().getName().equals(event.actorUsername())
