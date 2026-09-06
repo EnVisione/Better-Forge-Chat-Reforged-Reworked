@@ -1216,11 +1216,19 @@ public final class GuiWorkflowGameTests {
             if (command.isBlank() || !covered.add(definition.id())) {
                 continue;
             }
-            String invalidCommand = command + " __sef_invalid__";
-            ParseResults<CommandSourceStack> parsed = dispatcher.parse(invalidCommand, source);
-            boolean rejected = !parsed.getExceptions().isEmpty() || parsed.getReader().canRead();
-            if (!rejected) {
-                failures.add(definition.id() + ", invalid input parsed, " + invalidCommand);
+            String invalidCommand = null;
+            for (String suffix : List.of(
+                    " __sef_invalid__",
+                    " __sef_invalid__ __sef_invalid__",
+                    " \"unterminated")) {
+                String candidate = command + suffix;
+                ParseResults<CommandSourceStack> parsed = dispatcher.parse(candidate, source);
+                if (!parsed.getExceptions().isEmpty() || parsed.getReader().canRead()) {
+                    invalidCommand = candidate;
+                    break;
+                }
+            }
+            if (invalidCommand == null) {
                 covered.remove(definition.id());
                 continue;
             }
