@@ -178,7 +178,7 @@ public final class CommunityCommandGameTests {
         String actorKey = actor.getUUID().toString();
         target.teleportTo(actor.getX() + 100.0D, actor.getY(), actor.getZ());
 
-        helper.runAfterDelay(10, () -> {
+        runWhenPlayersOnline(helper, actor, target, () -> {
             try {
                 int requestResult = executeWithPermissions(
                         helper,
@@ -452,5 +452,20 @@ public final class CommunityCommandGameTests {
                 + ",y=" + Math.floor(player.getY())
                 + ",z=" + Math.floor(player.getZ())
                 + ",distance=..2]";
+    }
+
+    private static void runWhenPlayersOnline(
+            GameTestHelper helper,
+            ServerPlayer first,
+            ServerPlayer second,
+            Runnable action
+    ) {
+        var playerList = helper.getLevel().getServer().getPlayerList();
+        if (playerList.getPlayer(first.getUUID()) != null
+                && playerList.getPlayer(second.getUUID()) != null) {
+            action.run();
+            return;
+        }
+        helper.runAfterDelay(1, () -> runWhenPlayersOnline(helper, first, second, action));
     }
 }
