@@ -1439,7 +1439,10 @@ public final class GuiWorkflowGameTests {
                         || !"metadata_only".equals(event.auditClass())
                         || !"metadata".equals(event.redactionClass())
                         || !redactionSafe) {
-                    failures.add(definition.id() + ", " + command + ", unsafe player audit projection");
+                    failures.add(definition.id() + ", " + command + ", unsafe player audit projection, source "
+                            + event.sourceType() + ", actor " + event.actorUuid() + ", result "
+                            + event.result() + ", class " + event.auditClass() + ", redaction "
+                            + event.redactionClass() + ", safe " + redactionSafe);
                     continue;
                 }
                 JsonObject runtimeRow = new JsonObject();
