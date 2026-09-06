@@ -581,15 +581,16 @@ public final class AccessGrantCommands {
         if (target != null && !mayTarget(source, target)) {
             return 0;
         }
-        String permission = switch (state) {
-            case ACTIVE -> "commands.accessgrant.resume";
-            case SUSPENDED -> "commands.accessgrant.suspend";
-            case REVOKED -> "commands.accessgrant.revoke";
+        String action = switch (state) {
+            case ACTIVE -> "resume";
+            case SUSPENDED -> "suspend";
+            case REVOKED -> "revoke";
             case EXPIRED -> throw new IllegalArgumentException("expiry is automatic");
         };
+        String permission = "commands.accessgrant." + action;
         return execute(
                 source,
-                "sef:accessgrant." + state.name().toLowerCase(Locale.ROOT),
+                "sef:accessgrant." + action,
                 permission,
                 Map.of("lease", id.toString(), "state", state.name().toLowerCase(Locale.ROOT)),
                 List.of(current.subjectId()),
