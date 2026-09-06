@@ -16,6 +16,7 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class HomeCommands {
@@ -237,13 +238,18 @@ public final class HomeCommands {
                                 })))
                 .then(Commands.literal("export")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homeAdminExport))
-                        .executes(context -> {
-                            int count = KernelServices.teleports().allHomes(true).size();
-                            TeleportCommandSupport.info(
-                                    context.getSource(),
-                                    "The versioned teleport repository contains " + count + " home records.");
-                            return count;
-                        }));
+                        .executes(context -> KernelCommandExecutor.execute(
+                                context.getSource(),
+                                "sef:teleport.home.admin",
+                                Map.of("operation", "export"),
+                                () -> {
+                                    int count = KernelServices.teleports().allHomes(true).size();
+                                    TeleportCommandSupport.info(
+                                            context.getSource(),
+                                            "The versioned teleport repository contains " + count + " home records.");
+                                    return count;
+                                },
+                                PermissionsHandler.homeAdminExport)));
     }
 
     private static int setHome(
