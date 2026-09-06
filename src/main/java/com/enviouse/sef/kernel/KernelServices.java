@@ -2533,7 +2533,8 @@ public final class KernelServices {
                 "sef.control",
                 AuditService.AuditClass.SENSITIVE_ACCESS,
                 "sef:control",
-                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY,
+                false);
         registerDomainCommand(
                 "sef:adminlock.history.self",
                 "adminlock history",
@@ -2557,7 +2558,8 @@ public final class KernelServices {
                 "sef.control",
                 AuditService.AuditClass.SENSITIVE_ACCESS,
                 "sef:control",
-                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY,
+                false);
         registerDomainCommand(
                 "sef:adminlock.breakglass.status",
                 "adminlock breakglass status",
@@ -3228,7 +3230,7 @@ public final class KernelServices {
             String descriptor,
             CommandDefinition.ConflictPolicy conflictPolicy
     ) {
-        registerDomainAction(
+        registerDomainCommand(
                 id,
                 route,
                 roots,
@@ -3241,6 +3243,35 @@ public final class KernelServices {
                 descriptor,
                 conflictPolicy,
                 true);
+    }
+
+    private static void registerDomainCommand(
+            String id,
+            String route,
+            Set<String> roots,
+            String permission,
+            CommandDefinition.AccessClass access,
+            Set<CommandDefinition.SourceType> sources,
+            CommandDefinition.TargetBehavior targetBehavior,
+            String feature,
+            AuditService.AuditClass auditClass,
+            String descriptor,
+            CommandDefinition.ConflictPolicy conflictPolicy,
+            boolean playerFacing
+    ) {
+        registerDomainAction(
+                id,
+                route,
+                roots,
+                permission,
+                access,
+                sources,
+                targetBehavior,
+                feature,
+                auditClass,
+                descriptor,
+                conflictPolicy,
+                playerFacing);
     }
 
     private static void registerDomainAction(
