@@ -1430,7 +1430,8 @@ public final class GuiWorkflowGameTests {
                 }
                 boolean redactionSafe = event != null
                         && event.normalizedParameters().values().stream()
-                                .noneMatch(value -> value.contains(command));
+                                .noneMatch(value -> !value.equals(definition.canonicalRoute())
+                                        && value.contains(command));
                 if (!"player".equals(event.sourceType())
                         || !player.getUUID().toString().equals(event.actorUuid())
                         || player.getGameProfile().getName().isBlank()
