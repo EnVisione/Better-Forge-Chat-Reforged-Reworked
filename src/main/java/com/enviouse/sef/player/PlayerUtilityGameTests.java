@@ -1,5 +1,6 @@
 package com.enviouse.sef.player;
 
+import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -34,6 +35,13 @@ public final class PlayerUtilityGameTests {
             helper.assertTrue(
                     Float.compare(target.getHealth(), healthBefore) == 0,
                     "feed changed health");
+            CommandEffectEvidenceWriter.record(
+                    "sef:utility.feed",
+                    "feedRestoresHungerWithoutSaturationOrHealing",
+                    "success",
+                    target.getFoodData().getFoodLevel() == 20,
+                    true,
+                    "none");
             helper.succeed();
         } catch (CommandSyntaxException exception) {
             helper.fail("feed command failed through the live dispatcher");
