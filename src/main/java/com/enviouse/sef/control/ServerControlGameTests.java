@@ -441,6 +441,158 @@ public final class ServerControlGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty")
+    public static void serverControlRoutesRejectInvalidInputAndStaleRevisionWithoutMutation(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        List<ServerControlRepository.ControlRecord> createdRecords = new java.util.ArrayList<>();
+        try {
+            for (ServerControlCatalog.FeatureDefinition feature : ServerControlCatalog.FEATURES) {
+                String createActionId = "sef:control." + feature.id() + ".create";
+                String invalidCreate = "sef control " + feature.id() + " create \"\" \"invalid input\"";
+                int createResult;
+                try {
+                    createResult = DelegatedPermissionScope.preview(
+                            player.getUUID(),
+                            "server-control-create-invalid",
+                            createActionId,
+                            Set.of(
+                                    "sef.commands.sef.allowed",
+                                    "sef.commands.control",
+                                    "sef.commands.control." + feature.id() + ".create"),
+                            () -> {
+                                try {
+                                    return helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                                            invalidCreate,
+                                            player.createCommandSourceStack());
+                                } catch (CommandSyntaxException exception) {
+                                    throw new IllegalStateException(
+                                            "server control invalid create syntax was rejected for " + feature.id(),
+                                            exception);
+                                }
+                            });
+                } catch (RuntimeException exception) {
+                    throw new IllegalStateException(
+                            "server control invalid create route failed for " + feature.id(),
+                            exception);
+                }
+                helper.assertTrue(createResult <= 0, feature.id() + " accepted an empty title");
+                helper.assertTrue(
+                        KernelServices.serverControls().records(feature.id()).stream()
+                                .noneMatch(record -> record.ownerId().equals(player.getUUID())
+                                        && record.title().isEmpty()),
+                        feature.id() + " invalid create route persisted a record");
+                CommandEffectEvidenceWriter.record(
+                        createActionId,
+                        "serverControlRoutesRejectInvalidInputAndStaleRevisionWithoutMutation",
+                        "failure",
+                        false,
+                        true,
+                        "invalid_input");
+
+                String title = "stale revision " + feature.id() + " " + UUID.randomUUID();
+                String validCreate = "sef control " + feature.id()
+                        + " create \"" + title + "\" \"stale revision\"";
+                int validResult;
+                try {
+                    validResult = DelegatedPermissionScope.preview(
+                            player.getUUID(),
+                            "server-control-create-stale",
+                            createActionId,
+                            Set.of(
+                                    "sef.commands.sef.allowed",
+                                    "sef.commands.control",
+                                    "sef.commands.control." + feature.id() + ".create"),
+                            () -> {
+                                try {
+                                    return helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                                            validCreate,
+                                            player.createCommandSourceStack());
+                                } catch (CommandSyntaxException exception) {
+                                    throw new IllegalStateException(
+                                            "server control valid create syntax was rejected for " + feature.id(),
+                                            exception);
+                                }
+                            });
+                } catch (RuntimeException exception) {
+                    throw new IllegalStateException(
+                            "server control stale revision fixture failed for " + feature.id(),
+                            exception);
+                }
+                helper.assertTrue(validResult > 0, feature.id() + " stale revision fixture could not be created");
+                ServerControlRepository.ControlRecord record = KernelServices.serverControls().records(feature.id()).stream()
+                        .filter(candidate -> candidate.ownerId().equals(player.getUUID()))
+                        .filter(candidate -> candidate.title().equals(title))
+                        .findFirst()
+                        .orElse(null);
+                helper.assertTrue(record != null, feature.id() + " stale revision fixture was not persisted");
+                if (record == null) {
+                    continue;
+                }
+                createdRecords.add(record);
+
+                String manageActionId = "sef:control." + feature.id() + ".manage";
+                String staleState = "sef control " + feature.id()
+                        + " state " + record.id() + " cancelled " + (record.revision() + 1L)
+                        + " \"stale revision\"";
+                int staleResult;
+                try {
+                    staleResult = DelegatedPermissionScope.preview(
+                            player.getUUID(),
+                            "server-control-manage-stale",
+                            manageActionId,
+                            Set.of(
+                                    "sef.commands.sef.allowed",
+                                    "sef.commands.control",
+                                    "sef.commands.control." + feature.id() + ".manage"),
+                            () -> {
+                                try {
+                                    return helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                                            staleState,
+                                            player.createCommandSourceStack());
+                                } catch (CommandSyntaxException exception) {
+                                    throw new IllegalStateException(
+                                            "server control stale state syntax was rejected for " + feature.id(),
+                                            exception);
+                                }
+                            });
+                } catch (RuntimeException exception) {
+                    throw new IllegalStateException(
+                            "server control stale state route failed for " + feature.id(),
+                            exception);
+                }
+                helper.assertTrue(staleResult <= 0, feature.id() + " accepted a stale revision");
+                ServerControlRepository.ControlRecord unchanged = KernelServices.serverControls()
+                        .find(record.id())
+                        .orElse(null);
+                helper.assertTrue(
+                        record.equals(unchanged),
+                        feature.id() + " stale revision route changed the record");
+                CommandEffectEvidenceWriter.record(
+                        manageActionId,
+                        "serverControlRoutesRejectInvalidInputAndStaleRevisionWithoutMutation",
+                        "failure",
+                        false,
+                        true,
+                        "conflict");
+            }
+        } finally {
+            for (ServerControlRepository.ControlRecord record : createdRecords) {
+                var archived = KernelServices.serverControls().transition(
+                        record.id(),
+                        player.getUUID(),
+                        ServerControlRepository.RecordState.ARCHIVED,
+                        record.revision(),
+                        "game test cleanup");
+                if (!archived.successful()) {
+                    throw new IllegalStateException(
+                            "server control failure GameTest cleanup failed for " + record.featureId()
+                                    + ": " + archived.detail());
+                }
+            }
+        }
+        helper.succeed();
+    }
+
     private static ActionResult<ServerControlExecutionService.Execution> execute(
             GameTestHelper helper,
             String feature,
