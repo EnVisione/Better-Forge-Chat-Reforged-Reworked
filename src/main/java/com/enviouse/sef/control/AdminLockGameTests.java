@@ -170,7 +170,7 @@ public final class AdminLockGameTests {
             int releaseResult = executeConsole(
                     helper,
                     player,
-                    "adminlock release " + player.getGameProfile().getName() + " released-by-test",
+                    "adminlock release @a[uuid=" + player.getUUID() + "] released-by-test",
                     "release");
             helper.assertTrue(releaseResult > 0, "admin lock release command did not report success");
             helper.assertTrue(
