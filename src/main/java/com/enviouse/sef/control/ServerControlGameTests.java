@@ -4,9 +4,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.permissions.DelegatedPermissionScope;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -23,6 +27,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @GameTestHolder("sef")
@@ -314,6 +319,79 @@ public final class ServerControlGameTests {
                 true,
                 true,
                 "none");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void everyServerControlCreateRouteCreatesAndCleansOwnedRecord(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        List<ServerControlRepository.ControlRecord> createdRecords = new java.util.ArrayList<>();
+        try {
+            for (ServerControlCatalog.FeatureDefinition feature : ServerControlCatalog.FEATURES) {
+                String actionId = "sef:control." + feature.id() + ".create";
+                String title = "audit create " + feature.id() + " " + UUID.randomUUID();
+                String command = "sef control " + feature.id()
+                        + " create \"" + title + "\" \"route audit\"";
+                int result;
+                try {
+                    result = DelegatedPermissionScope.preview(
+                            player.getUUID(),
+                            "server-control-create",
+                            actionId,
+                            Set.of(
+                                    "sef.commands.sef.allowed",
+                                    "sef.commands.control",
+                                    "sef.commands.control." + feature.id() + ".create"),
+                            () -> {
+                                try {
+                                    return helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                                            command,
+                                            player.createCommandSourceStack());
+                                } catch (CommandSyntaxException exception) {
+                                    throw new IllegalStateException(
+                                            "server control create route syntax was rejected for " + feature.id(),
+                                            exception);
+                                }
+                            });
+                } catch (RuntimeException exception) {
+                    throw new IllegalStateException(
+                            "server control create route failed for " + feature.id(),
+                            exception);
+                }
+                helper.assertTrue(result > 0, feature.id() + " create route did not report success");
+                ServerControlRepository.ControlRecord record = KernelServices.serverControls().records(feature.id()).stream()
+                        .filter(candidate -> candidate.ownerId().equals(player.getUUID()))
+                        .filter(candidate -> candidate.title().equals(title))
+                        .findFirst()
+                        .orElse(null);
+                helper.assertTrue(record != null, feature.id() + " create route did not persist its record");
+                helper.assertTrue(
+                        record != null && record.ownerId().equals(player.getUUID()),
+                        feature.id() + " create route persisted the wrong owner");
+                createdRecords.add(record);
+                CommandEffectEvidenceWriter.record(
+                        actionId,
+                        "everyServerControlCreateRouteCreatesAndCleansOwnedRecord",
+                        "success",
+                        true,
+                        true,
+                        "none");
+            }
+        } finally {
+            for (ServerControlRepository.ControlRecord record : createdRecords) {
+                var archived = KernelServices.serverControls().transition(
+                        record.id(),
+                        player.getUUID(),
+                        ServerControlRepository.RecordState.ARCHIVED,
+                        record.revision(),
+                        "game test cleanup");
+                if (!archived.successful()) {
+                    throw new IllegalStateException(
+                            "server control create GameTest cleanup failed for " + record.featureId()
+                                    + ": " + archived.detail());
+                }
+            }
+        }
         helper.succeed();
     }
 
