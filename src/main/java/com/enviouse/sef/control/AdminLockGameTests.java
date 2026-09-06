@@ -151,11 +151,11 @@ public final class AdminLockGameTests {
             int invalidateResult = execute(
                     helper,
                     player,
-                    "adminlock invalidate " + player.getGameProfile().getName() + " invalidated-by-test",
+                    "adminlock invalidate all invalidated-by-test",
                     "invalidate");
             helper.assertTrue(invalidateResult > 0, "admin lock invalidate command did not report success");
             helper.assertTrue(
-                    KernelServices.adminLocks().activeSessionCount() == 0,
+                    KernelServices.adminLocks().status(playerId).session().isEmpty(),
                     "admin lock invalidate command did not clear the session");
             CommandEffectEvidenceWriter.record(
                     "sef:adminlock.invalidate",
@@ -167,7 +167,7 @@ public final class AdminLockGameTests {
 
             int lockResult = execute(helper, player, "adminlock lock recovery-lock", "lock");
             helper.assertTrue(lockResult > 0, "admin lock recovery setup did not lock the account");
-            int releaseResult = execute(
+            int releaseResult = executeConsole(
                     helper,
                     player,
                     "adminlock release " + player.getGameProfile().getName() + " released-by-test",
@@ -200,6 +200,25 @@ public final class AdminLockGameTests {
     }
 
     private static int execute(GameTestHelper helper, ServerPlayer player, String command, String action) {
+        return executeWithSource(helper, player, command, action, player.createCommandSourceStack());
+    }
+
+    private static int executeConsole(GameTestHelper helper, ServerPlayer player, String command, String action) {
+        return executeWithSource(
+                helper,
+                player,
+                command,
+                action,
+                helper.getLevel().getServer().createCommandSourceStack());
+    }
+
+    private static int executeWithSource(
+            GameTestHelper helper,
+            ServerPlayer player,
+            String command,
+            String action,
+            net.minecraft.commands.CommandSourceStack source
+    ) {
         String actionId = "sef:adminlock." + action;
         return DelegatedPermissionScope.preview(
                 player.getUUID(),
@@ -210,7 +229,7 @@ public final class AdminLockGameTests {
                     try {
                         return helper.getLevel().getServer().getCommands().getDispatcher().execute(
                                 command,
-                                player.createCommandSourceStack());
+                                source);
                     } catch (CommandSyntaxException exception) {
                         throw new IllegalStateException("admin lock command syntax was rejected", exception);
                     }
