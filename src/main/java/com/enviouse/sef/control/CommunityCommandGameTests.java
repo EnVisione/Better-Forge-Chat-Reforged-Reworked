@@ -251,6 +251,79 @@ public final class CommunityCommandGameTests {
         });
     }
 
+    @GameTest(template = "empty")
+    public static void friendRequestRejectsSelfWithoutMutation(GameTestHelper helper) {
+        ServerPlayer actor = helper.makeMockServerPlayerInLevel();
+        String requestKey = actor.getUUID().toString();
+        int result = executeWithPermissions(helper, actor, "friend add @s");
+
+        helper.assertTrue(result <= 0, "self friend request was accepted");
+        helper.assertTrue(
+                KernelServices.communityState()
+                        .find("friend_request", actor.getUUID(), requestKey)
+                        .isEmpty(),
+                "self friend request changed state");
+        CommandEffectEvidenceWriter.record(
+                "sef:control.friends.request",
+                "friendRequestRejectsSelfWithoutMutation",
+                "failure",
+                false,
+                true,
+                "invalid_input");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void mentionPreferencesPersistAndRejectInvalidMode(GameTestHelper helper) {
+        ServerPlayer actor = helper.makeMockServerPlayerInLevel();
+        try {
+            int modeResult = executeWithPermissions(helper, actor, "mentions mode staff");
+            helper.assertTrue(modeResult > 0, "mention mode update did not report success");
+            helper.assertTrue(
+                    KernelServices.communityState()
+                            .find("mention_mode", actor.getUUID(), "preference")
+                            .map(entry -> entry.value().equals("staff"))
+                            .orElse(false),
+                    "mention mode did not persist");
+
+            int soundResult = executeWithPermissions(helper, actor, "mentions sound false");
+            helper.assertTrue(soundResult > 0, "mention sound update did not report success");
+            helper.assertTrue(
+                    KernelServices.communityState()
+                            .find("mention_sound", actor.getUUID(), "preference")
+                            .map(entry -> entry.value().equals("false"))
+                            .orElse(false),
+                    "mention sound did not persist");
+            CommandEffectEvidenceWriter.record(
+                    "sef:control.mentions.set",
+                    "mentionPreferencesPersistAndRejectInvalidModeSuccess",
+                    "success",
+                    true,
+                    true,
+                    "none");
+
+            int invalidResult = executeWithPermissions(helper, actor, "mentions mode hidden");
+            helper.assertTrue(invalidResult <= 0, "invalid mention mode was accepted");
+            helper.assertTrue(
+                    KernelServices.communityState()
+                            .find("mention_mode", actor.getUUID(), "preference")
+                            .map(entry -> entry.value().equals("staff"))
+                            .orElse(false),
+                    "invalid mention mode changed persisted state");
+            CommandEffectEvidenceWriter.record(
+                    "sef:control.mentions.set",
+                    "mentionPreferencesPersistAndRejectInvalidModeFailure",
+                    "failure",
+                    false,
+                    true,
+                    "invalid_input");
+            helper.succeed();
+        } finally {
+            KernelServices.communityState().remove("mention_mode", actor.getUUID(), "preference");
+            KernelServices.communityState().remove("mention_sound", actor.getUUID(), "preference");
+        }
+    }
+
     private static int executeWithPermissions(
             GameTestHelper helper,
             ServerPlayer actor,
