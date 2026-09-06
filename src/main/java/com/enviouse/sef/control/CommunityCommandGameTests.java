@@ -178,7 +178,7 @@ public final class CommunityCommandGameTests {
         String actorKey = actor.getUUID().toString();
         target.teleportTo(actor.getX() + 100.0D, actor.getY(), actor.getZ());
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(10, () -> {
             try {
                 int requestResult = executeWithPermissions(
                         helper,
