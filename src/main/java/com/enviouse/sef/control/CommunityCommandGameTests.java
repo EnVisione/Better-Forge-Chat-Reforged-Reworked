@@ -2,6 +2,7 @@ package com.enviouse.sef.control;
 
 import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -329,6 +330,20 @@ public final class CommunityCommandGameTests {
         ServerPlayer actor = helper.makeMockServerPlayerInLevel();
         java.util.List<java.util.UUID> createdRecords = new java.util.ArrayList<>();
         try {
+            var ticketDefinition = KernelServices.catalog().find("sef:control.tickets.submit").orElse(null);
+            var ticketPermission = ticketDefinition == null || ticketDefinition.permissionIds().isEmpty()
+                    ? null
+                    : KernelServices.permissionNode(ticketDefinition.permissionIds().iterator().next());
+            var ticketSource = actor.createCommandSourceStack().withPermission(4);
+            var ticketRoot = helper.getLevel().getServer().getCommands().getDispatcher().getRoot().getChild("ticket");
+            helper.assertTrue(ticketDefinition != null, "ticket workflow is missing from the command catalog");
+            helper.assertTrue(ticketRoot != null, "ticket workflow root was not registered");
+            helper.assertTrue(
+                    ticketRoot.canUse(ticketSource),
+                    "ticket workflow root is unavailable, permission="
+                            + (ticketPermission == null
+                            ? "missing"
+                            : PermissionService.decide(actor, ticketPermission).denialReason()));
             int ticketResult = executeWithPermissions(
                     helper,
                     actor,
