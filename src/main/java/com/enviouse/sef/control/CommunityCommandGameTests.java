@@ -339,6 +339,13 @@ public final class CommunityCommandGameTests {
             helper.assertTrue(ticketDefinition != null, "ticket workflow is missing from the command catalog");
             helper.assertTrue(ticketRoot != null, "ticket workflow root was not registered");
             helper.assertTrue(
+                    ticketRoot != null && ticketRoot.getChild("description") != null,
+                    "ticket workflow root is not the player route, children="
+                            + (ticketRoot == null ? "missing" : ticketRoot.getChildren().stream()
+                            .map(node -> node.getName())
+                            .sorted()
+                            .toList()));
+            helper.assertTrue(
                     ticketRoot.canUse(ticketSource),
                     "ticket workflow root is unavailable, permission="
                             + (ticketPermission == null
@@ -414,7 +421,18 @@ public final class CommunityCommandGameTests {
             helper.fail("community command execution failed, " + exception.getMessage());
             return 0;
         } catch (CommandSyntaxException exception) {
-            helper.fail("community command syntax was rejected, " + exception.getMessage());
+            String rootName = command.split("\\s+", 2)[0];
+            var root = helper.getLevel().getServer().getCommands().getDispatcher().getRoot().getChild(rootName);
+            helper.fail(
+                    "community command syntax was rejected, "
+                            + exception.getMessage()
+                            + ", root="
+                            + (root == null ? "missing" : root.getChildren().stream()
+                            .map(node -> node.getName())
+                            .sorted()
+                            .toList())
+                            + ", root_can_use="
+                            + (root != null && root.canUse(actor.createCommandSourceStack().withPermission(4))));
             return 0;
         }
     }
