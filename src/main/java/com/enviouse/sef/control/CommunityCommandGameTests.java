@@ -448,10 +448,10 @@ public final class CommunityCommandGameTests {
     }
 
     private static String selectorFor(ServerPlayer player) {
-        return "@p[x=" + Math.floor(player.getX())
+        return "@a[x=" + Math.floor(player.getX())
                 + ",y=" + Math.floor(player.getY())
                 + ",z=" + Math.floor(player.getZ())
-                + ",distance=..2]";
+                + ",dx=0,dy=0,dz=0,limit=1]";
     }
 
     private static void runWhenPlayersOnline(
