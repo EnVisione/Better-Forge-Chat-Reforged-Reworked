@@ -689,6 +689,7 @@ public final class MinecraftServerControlRuntime {
 
     private static boolean recoveryAction(String actionId) {
         return actionId.startsWith("sef:control.admin_lock")
+                || actionId.startsWith("sef:adminlock.")
                 || actionId.startsWith("sef:config.status")
                 || actionId.startsWith("sef:control.status")
                 || actionId.equals("sef:core.help");
