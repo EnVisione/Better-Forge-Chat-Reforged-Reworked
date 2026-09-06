@@ -351,13 +351,13 @@ public final class UniversalCommandMatrixGenerator {
                     "effect",
                     "pass",
                     "candidate-bound dedicated-server GameTest observed the action-specific domain effect",
-                    "server-control-effect-runtime.json");
+                    "command-effect-runtime.json");
             add(
                     dimensions,
                     "linux_shared_runtime",
                     "pass",
                     "candidate-bound action-specific effect executed on canonical Linux",
-                    "server-control-effect-runtime.json");
+                    "command-effect-runtime.json");
         }
         if (effectEvidence.hasFailure(action.get("semanticKey").getAsString())) {
             add(
@@ -365,7 +365,7 @@ public final class UniversalCommandMatrixGenerator {
                     "failure",
                     "partial",
                     "one candidate-bound action-specific failure class preserved state; distinct failure classes remain open",
-                    "server-control-effect-runtime.json");
+                    "command-effect-runtime.json");
         }
         return dimensions;
     }
@@ -379,7 +379,10 @@ public final class UniversalCommandMatrixGenerator {
                 return new EffectEvidence(Map.of());
             }
             Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
-            Path file = root.resolve("server-control-effect-runtime.json");
+            Path file = root.resolve("command-effect-runtime.json");
+            if (!Files.exists(file)) {
+                file = root.resolve("server-control-effect-runtime.json");
+            }
             if (!Files.exists(file)) {
                 return new EffectEvidence(Map.of());
             }

@@ -1,6 +1,7 @@
 package com.enviouse.sef.gui;
 
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
 import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.gui.protocol.OfflineActionRepository;
@@ -1281,6 +1282,13 @@ public final class GuiWorkflowGameTests {
                         .filter(entry -> entry.id().equals(action.id()))
                         .anyMatch(entry -> entry.state() == OfflineActionRepository.ActionState.SUCCEEDED),
                 "queued give did not persist a successful terminal outcome");
+        CommandEffectEvidenceWriter.record(
+                definition.id(),
+                "queuedGiveExecutesWithOfflineActorAndOnlyOnce",
+                "success",
+                afterFirstPass > before && afterSecondPass == afterFirstPass,
+                true,
+                "none");
         helper.succeed();
     }
 

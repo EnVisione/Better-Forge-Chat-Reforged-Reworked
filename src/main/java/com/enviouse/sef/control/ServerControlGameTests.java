@@ -2,6 +2,7 @@ package com.enviouse.sef.control;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
 import com.enviouse.sef.kernel.ActionResult;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -18,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -28,8 +28,6 @@ import java.util.UUID;
 @GameTestHolder("sef")
 @PrefixGameTestTemplate(false)
 public final class ServerControlGameTests {
-    private static final List<EffectEvidence> EFFECT_EVIDENCE = new ArrayList<>();
-
     private ServerControlGameTests() {
     }
 
@@ -404,69 +402,13 @@ public final class ServerControlGameTests {
             boolean unchangedOnFailure,
             String failureClass
     ) {
-        String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
-        if (evidenceRoot.isEmpty()) {
-            return;
-        }
-        String candidateCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
-        String candidateSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
-        if (!candidateCommit.matches("[0-9a-f]{40}") || !candidateSha256.matches("[0-9a-f]{64}")) {
-            throw new IllegalArgumentException("effect evidence candidate identity properties are required");
-        }
-        EFFECT_EVIDENCE.removeIf(row -> row.actionId().equals(actionId) && row.testName().equals(testName));
-        EFFECT_EVIDENCE.add(new EffectEvidence(
+        CommandEffectEvidenceWriter.record(
                 actionId,
                 testName,
                 result,
                 effectObserved,
                 unchangedOnFailure,
-                failureClass));
-        Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
-        if (Files.isSymbolicLink(root)) {
-            throw new IllegalArgumentException("effect evidence root is a symlink");
-        }
-        try {
-            Files.createDirectories(root);
-            Path output = root.resolve("server-control-effect-runtime.json");
-            if (Files.isSymbolicLink(output)) {
-                throw new IllegalArgumentException("effect evidence target is a symlink");
-            }
-            JsonArray rows = new JsonArray();
-            EFFECT_EVIDENCE.stream()
-                    .sorted(Comparator.comparing(EffectEvidence::actionId).thenComparing(EffectEvidence::testName))
-                    .forEach(row -> {
-                        JsonObject value = new JsonObject();
-                        value.addProperty("actionId", row.actionId());
-                        value.addProperty("testName", row.testName());
-                        value.addProperty("result", row.result());
-                        value.addProperty("effectObserved", row.effectObserved());
-                        value.addProperty("unchangedOnFailure", row.unchangedOnFailure());
-                        value.addProperty("failureClass", row.failureClass());
-                        value.addProperty("sourceType", "dedicated_server_gametest");
-                        value.addProperty("runtime", "canonical_linux");
-                        rows.add(value);
-                    });
-            JsonObject record = new JsonObject();
-            record.addProperty("schemaVersion", 1);
-            record.addProperty("candidateCommit", candidateCommit);
-            record.addProperty("candidateSha256", candidateSha256);
-            record.addProperty("source", "ServerControlGameTests");
-            record.addProperty("rowCount", rows.size());
-            record.add("rows", rows);
-            Files.writeString(output, record.toString() + System.lineSeparator(), StandardCharsets.UTF_8);
-        } catch (IOException exception) {
-            throw new IllegalStateException("effect evidence could not be written", exception);
-        }
-    }
-
-    private record EffectEvidence(
-            String actionId,
-            String testName,
-            String result,
-            boolean effectObserved,
-            boolean unchangedOnFailure,
-            String failureClass
-    ) {
+                failureClass);
     }
 
     private static void deleteTree(Path root) {
