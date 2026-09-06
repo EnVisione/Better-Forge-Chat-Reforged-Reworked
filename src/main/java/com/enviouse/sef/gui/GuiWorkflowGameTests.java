@@ -1508,6 +1508,7 @@ public final class GuiWorkflowGameTests {
                     continue;
                 }
                 String invalidCommand = null;
+                boolean positiveInputAccepted = false;
                 for (var variant : workflow.variants()) {
                     if (!isCanonicalVariant(definition, variant)) {
                         continue;
@@ -1532,16 +1533,24 @@ public final class GuiWorkflowGameTests {
                             try {
                                 int result = dispatcher.execute(candidate, player.createCommandSourceStack());
                                 if (result <= 0) {
-                                    invalidCommand = candidate;
-                                    break;
-                                }
-                                failures.add(definition.id() + ", invalid player input executed, " + candidate);
+                                        invalidCommand = candidate;
+                                        break;
+                                    }
+                                positiveInputAccepted = true;
                             } catch (Exception exception) {
                                 invalidCommand = candidate;
                                 break;
                             }
                         }
                     } else {
+                        String missingArgumentCommand = definition.canonicalRoute();
+                        ParseResults<CommandSourceStack> missingArgument = dispatcher.parse(
+                                missingArgumentCommand,
+                                player.createCommandSourceStack());
+                        if (!missingArgument.getExceptions().isEmpty() || missingArgument.getReader().canRead()) {
+                            invalidCommand = missingArgumentCommand;
+                            break;
+                        }
                         for (var field : variant.fields()) {
                             for (String invalidValue : invalidValues(field)) {
                                 String candidate = renderWithFieldOverride(variant, field.id(), invalidValue);
@@ -1558,7 +1567,7 @@ public final class GuiWorkflowGameTests {
                                         invalidCommand = candidate;
                                         break;
                                     }
-                                    failures.add(definition.id() + ", invalid player input executed, " + candidate);
+                                    positiveInputAccepted = true;
                                 } catch (Exception exception) {
                                     invalidCommand = candidate;
                                     break;
@@ -1572,6 +1581,9 @@ public final class GuiWorkflowGameTests {
                     if (invalidCommand != null) {
                         break;
                     }
+                }
+                if (invalidCommand == null && positiveInputAccepted) {
+                    failures.add(definition.id() + ", invalid player input was accepted");
                 }
                 if (invalidCommand != null && covered.add(definition.id())) {
                     CommandEffectEvidenceWriter.record(
