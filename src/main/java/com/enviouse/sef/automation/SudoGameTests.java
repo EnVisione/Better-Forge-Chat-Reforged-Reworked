@@ -1,5 +1,6 @@
 package com.enviouse.sef.automation;
 
+import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
 import com.enviouse.sef.gui.protocol.SefGuiServer;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.FeatureGateService;
@@ -275,6 +276,13 @@ public final class SudoGameTests {
             helper.assertTrue(!target.getActiveEffects().isEmpty(), "delegated command route had no effect");
             helper.assertTrue(!target.hasPermissions(2), "target retained delegated vanilla permission");
             helper.assertTrue(!DelegatedPermissionScope.active(), "delegated command route leaked scope");
+            CommandEffectEvidenceWriter.record(
+                    "sef:sudo.run",
+                    "delegatedCommandRouteExecutesWithoutPersistentPrivilege",
+                    "success",
+                    !target.getActiveEffects().isEmpty(),
+                    true,
+                    "none");
             helper.succeed();
         } catch (Exception exception) {
             helper.fail("delegated sudo command route failed, " + exception.getClass().getSimpleName());
