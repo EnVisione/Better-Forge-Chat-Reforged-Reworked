@@ -1,6 +1,7 @@
 package com.enviouse.sef.inventory;
 
 import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
+import com.enviouse.sef.permissions.DelegatedPermissionScope;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -13,6 +14,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+
+import java.util.Set;
 
 @GameTestHolder("sef")
 @PrefixGameTestTemplate(false)
@@ -118,24 +121,24 @@ public final class InventoryGameTests {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 5));
 
+        int result;
         try {
-            int result = helper.getLevel().getServer().getCommands().getDispatcher().execute(
-                    "more", player.createCommandSourceStack());
-
-            helper.assertTrue(result > 0, "more command did not report success");
-            helper.assertValueEqual(player.getMainHandItem().getCount(), 64,
-                    "more command did not fill the held stack");
-            CommandEffectEvidenceWriter.record(
-                    "sef:inventory.more",
-                    "moreCommandFillsHeldStackEffectEvidence",
-                    "success",
-                    player.getMainHandItem().getCount() == 64,
-                    true,
-                    "none");
-            helper.succeed();
-        } catch (CommandSyntaxException exception) {
+            result = executeMore(helper, player);
+        } catch (IllegalStateException exception) {
             helper.fail("more command failed through the live dispatcher");
+            return;
         }
+        helper.assertTrue(result > 0, "more command did not report success");
+        helper.assertValueEqual(player.getMainHandItem().getCount(), 64,
+                "more command did not fill the held stack");
+        CommandEffectEvidenceWriter.record(
+                "sef:inventory.more",
+                "moreCommandFillsHeldStackEffectEvidence",
+                "success",
+                player.getMainHandItem().getCount() == 64,
+                true,
+                "none");
+        helper.succeed();
     }
 
     @GameTest(template = "empty")
@@ -143,17 +146,16 @@ public final class InventoryGameTests {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 64));
         ItemStack before = player.getMainHandItem().copy();
-        int result = Integer.MIN_VALUE;
-        boolean syntaxRejected = false;
+        int result;
 
         try {
-            result = helper.getLevel().getServer().getCommands().getDispatcher().execute(
-                    "more", player.createCommandSourceStack());
-        } catch (CommandSyntaxException exception) {
-            syntaxRejected = true;
+            result = executeMore(helper, player);
+        } catch (IllegalStateException exception) {
+            helper.fail("more command failure route could not be dispatched");
+            return;
         }
 
-        helper.assertTrue(syntaxRejected || result <= 0,
+        helper.assertTrue(result <= 0,
                 "more command accepted an already full stack");
         helper.assertTrue(ItemStack.matches(before, player.getMainHandItem()),
                 "full more command changed the held stack");
@@ -165,6 +167,22 @@ public final class InventoryGameTests {
                 true,
                 "invalid_input");
         helper.succeed();
+    }
+
+    private static int executeMore(GameTestHelper helper, ServerPlayer player) {
+        return DelegatedPermissionScope.preview(
+                player.getUUID(),
+                "more",
+                "sef:inventory.more",
+                Set.of("sef.commands.more"),
+                () -> {
+                    try {
+                        return helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                                "more", player.createCommandSourceStack());
+                    } catch (CommandSyntaxException exception) {
+                        throw new IllegalStateException("more command syntax was rejected", exception);
+                    }
+                });
     }
 
     private static int count(Inventory inventory, Item item) {
