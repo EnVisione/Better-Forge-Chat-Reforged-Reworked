@@ -154,7 +154,10 @@ public final class EnchantGameTests {
                         return helper.getLevel().getServer().getCommands().getDispatcher().execute(
                                 command, player.createCommandSourceStack());
                     } catch (CommandSyntaxException exception) {
-                        throw new IllegalStateException("administrative enchant command syntax was rejected", exception);
+                        throw new IllegalStateException(
+                                "administrative enchant command syntax was rejected: "
+                                        + exception.getRawMessage().getString(),
+                                exception);
                     }
                 });
     }
