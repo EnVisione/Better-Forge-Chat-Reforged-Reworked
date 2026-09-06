@@ -1,7 +1,10 @@
 package com.enviouse.sef.inventory;
 
+import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -46,6 +49,67 @@ public final class InventoryGameTests {
         helper.assertTrue(
                 ItemStack.matches(before, inventory.getItem(0)),
                 "an incomplete recipe changed the inventory");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void condensationCommandEmitsSuccessEffectEvidence(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        Inventory inventory = player.getInventory();
+        inventory.setItem(0, new ItemStack(Items.IRON_INGOT, 18));
+        inventory.setItem(1, new ItemStack(Items.DIAMOND, 3));
+
+        try {
+            int result = helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                    "condense", player.createCommandSourceStack());
+
+            helper.assertTrue(result > 0, "condense command did not report success");
+            helper.assertValueEqual(count(inventory, Items.IRON_INGOT), 0,
+                    "condense command did not consume the input");
+            helper.assertValueEqual(count(inventory, Items.IRON_BLOCK), 2,
+                    "condense command did not create the output");
+            helper.assertValueEqual(count(inventory, Items.DIAMOND), 3,
+                    "condense command changed unrelated items");
+            CommandEffectEvidenceWriter.record(
+                    "sef:inventory.condense",
+                    "condensationCommandEmitsSuccessEffectEvidence",
+                    "success",
+                    count(inventory, Items.IRON_BLOCK) == 2,
+                    true,
+                    "none");
+            helper.succeed();
+        } catch (CommandSyntaxException exception) {
+            helper.fail("condense command failed through the live dispatcher");
+        }
+    }
+
+    @GameTest(template = "empty")
+    public static void condensationCommandRejectsIncompleteRecipeWithoutMutation(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        Inventory inventory = player.getInventory();
+        inventory.setItem(0, new ItemStack(Items.GOLD_INGOT, 8));
+        ItemStack before = inventory.getItem(0).copy();
+        int result = Integer.MIN_VALUE;
+        boolean syntaxRejected = false;
+
+        try {
+            result = helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                    "condense", player.createCommandSourceStack());
+        } catch (CommandSyntaxException exception) {
+            syntaxRejected = true;
+        }
+
+        helper.assertTrue(syntaxRejected || result <= 0,
+                "condense command accepted an incomplete recipe");
+        helper.assertTrue(ItemStack.matches(before, inventory.getItem(0)),
+                "incomplete condense command changed the inventory");
+        CommandEffectEvidenceWriter.record(
+                "sef:inventory.condense",
+                "condensationCommandRejectsIncompleteRecipeWithoutMutation",
+                "failure",
+                false,
+                true,
+                "invalid_input");
         helper.succeed();
     }
 
