@@ -15,45 +15,48 @@ public final class CommunityCommandGameTests {
     private CommunityCommandGameTests() {
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "empty", timeoutTicks = 200)
     public static void interactionBlockCommandAddsAndRemovesDurableState(GameTestHelper helper) {
         ServerPlayer actor = helper.makeMockServerPlayerInLevel();
         ServerPlayer target = helper.makeMockServerPlayerInLevel();
         String key = target.getUUID() + ":messages";
+        target.teleportTo(actor.getX() + 100.0D, actor.getY(), actor.getZ());
 
-        try {
-            int addResult = executeWithPermissions(
-                    helper,
-                    actor,
-                    "blocks add @p[distance=90..110] messages");
-            helper.assertTrue(addResult > 0, "interaction block add did not report success");
-            helper.assertTrue(
-                    KernelServices.communityState()
-                            .find("interaction_block", actor.getUUID(), key)
-                            .isPresent(),
-                    "interaction block add did not persist state");
+        helper.runAfterDelay(2, () -> {
+            try {
+                int addResult = executeWithPermissions(
+                        helper,
+                        actor,
+                        "blocks add @p[distance=90..110] messages");
+                helper.assertTrue(addResult > 0, "interaction block add did not report success");
+                helper.assertTrue(
+                        KernelServices.communityState()
+                                .find("interaction_block", actor.getUUID(), key)
+                                .isPresent(),
+                        "interaction block add did not persist state");
 
-            int removeResult = executeWithPermissions(
-                    helper,
-                    actor,
-                    "blocks remove @p[distance=90..110] messages");
-            helper.assertTrue(removeResult > 0, "interaction block remove did not report success");
-            helper.assertTrue(
-                    KernelServices.communityState()
-                            .find("interaction_block", actor.getUUID(), key)
-                            .isEmpty(),
-                    "interaction block remove did not clear state");
-            CommandEffectEvidenceWriter.record(
-                    "sef:control.interaction_blocks.set",
-                    "interactionBlockCommandAddsAndRemovesDurableState",
-                    "success",
-                    true,
-                    true,
-                    "none");
-            helper.succeed();
-        } finally {
-            KernelServices.communityState().remove("interaction_block", actor.getUUID(), key);
-        }
+                int removeResult = executeWithPermissions(
+                        helper,
+                        actor,
+                        "blocks remove @p[distance=90..110] messages");
+                helper.assertTrue(removeResult > 0, "interaction block remove did not report success");
+                helper.assertTrue(
+                        KernelServices.communityState()
+                                .find("interaction_block", actor.getUUID(), key)
+                                .isEmpty(),
+                        "interaction block remove did not clear state");
+                CommandEffectEvidenceWriter.record(
+                        "sef:control.interaction_blocks.set",
+                        "interactionBlockCommandAddsAndRemovesDurableState",
+                        "success",
+                        true,
+                        true,
+                        "none");
+                helper.succeed();
+            } finally {
+                KernelServices.communityState().remove("interaction_block", actor.getUUID(), key);
+            }
+        });
     }
 
     @GameTest(template = "empty")
