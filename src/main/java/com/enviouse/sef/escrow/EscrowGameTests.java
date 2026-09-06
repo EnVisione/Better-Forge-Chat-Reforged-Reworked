@@ -1,5 +1,6 @@
 package com.enviouse.sef.escrow;
 
+import com.enviouse.sef.audit.CommandEffectEvidenceWriter;
 import com.enviouse.sef.control.ServerControlExecutionService;
 import com.enviouse.sef.control.ServerControlRepository;
 import com.enviouse.sef.economy.EconomyProvider;
@@ -75,6 +76,15 @@ public final class EscrowGameTests {
         helper.assertTrue(
                 recipient.getInventory().countItem(Items.DIAMOND) == 3,
                 "duplicate parcel claim duplicated items");
+        CommandEffectEvidenceWriter.record(
+                "sef:control.parcels.manage",
+                "parcelMovesServerCapturedItemsExactlyOnce",
+                "success",
+                recipient.getInventory().countItem(Items.DIAMOND) == 3
+                        && KernelServices.escrow().repository().find(escrowId).orElseThrow().state()
+                        == EscrowRepository.EscrowState.SETTLED,
+                true,
+                "none");
         helper.succeed();
     }
 
@@ -128,6 +138,15 @@ public final class EscrowGameTests {
                 KernelServices.escrow().repository().find(escrowId).orElseThrow().state()
                         == EscrowRepository.EscrowState.SETTLED,
                 "parcel currency journal was not settled");
+        CommandEffectEvidenceWriter.record(
+                "sef:control.parcels.manage",
+                "parcelCurrencyUsesIdempotentCustodyAndRelease",
+                "success",
+                provider.account(recipient.getUUID()).orElseThrow().balance() == 250L
+                        && KernelServices.escrow().repository().find(escrowId).orElseThrow().state()
+                        == EscrowRepository.EscrowState.SETTLED,
+                true,
+                "none");
         helper.succeed();
     }
 
@@ -162,6 +181,13 @@ public final class EscrowGameTests {
         helper.assertTrue(
                 sender.getInventory().countItem(Items.DIAMOND) == 2,
                 "blocked parcel changed the sender inventory");
+        CommandEffectEvidenceWriter.record(
+                "sef:control.parcels.manage",
+                "parcelHonorsRecipientInteractionBlocks",
+                "failure",
+                false,
+                sender.getInventory().countItem(Items.DIAMOND) == 2,
+                "target_denied");
         helper.succeed();
     }
 
@@ -203,6 +229,13 @@ public final class EscrowGameTests {
         helper.assertTrue(
                 custodian.getInventory().countItem(Items.DIAMOND) == 1,
                 "duplicate source changed escrow custody");
+        CommandEffectEvidenceWriter.record(
+                "sef:control.lost_found.manage",
+                "lostAndFoundRejectsDuplicateTypedSources",
+                "failure",
+                false,
+                custodian.getInventory().countItem(Items.DIAMOND) == 1,
+                "conflict");
         helper.succeed();
     }
 
@@ -259,6 +292,16 @@ public final class EscrowGameTests {
                         watcher.getUUID(),
                         escrowId.toString()).isEmpty(),
                 "auction watch was not removed");
+        CommandEffectEvidenceWriter.record(
+                "sef:control.auctions.manage",
+                "auctionWatchStateCanBeAddedAndRemoved",
+                "success",
+                KernelServices.communityState().find(
+                        "auction_watch",
+                        watcher.getUUID(),
+                        escrowId.toString()).isEmpty(),
+                true,
+                "none");
         helper.succeed();
     }
 
