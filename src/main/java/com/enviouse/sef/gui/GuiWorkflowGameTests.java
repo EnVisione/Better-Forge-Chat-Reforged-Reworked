@@ -23,6 +23,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.time.Duration;
 import java.time.Instant;
@@ -448,17 +449,25 @@ public final class GuiWorkflowGameTests {
                 .toAbsolutePath()
                 .normalize();
         String eventMarker = "\"eventId\":\"" + eventId + "\"";
-        for (int attempt = 0; attempt < 40; attempt++) {
+        for (int attempt = 0; attempt < 8; attempt++) {
             try {
-                if (Files.isRegularFile(auditFile, LinkOption.NOFOLLOW_LINKS)
-                        && Files.readString(auditFile, StandardCharsets.UTF_8).contains(eventMarker)) {
-                    return true;
+                if (Files.isRegularFile(auditFile, LinkOption.NOFOLLOW_LINKS)) {
+                    try (RandomAccessFile persisted = new RandomAccessFile(auditFile.toFile(), "r")) {
+                        long length = persisted.length();
+                        long offset = Math.max(0L, length - 64L * 1024L);
+                        persisted.seek(offset);
+                        byte[] tail = new byte[(int) (length - offset)];
+                        persisted.readFully(tail);
+                        if (new String(tail, StandardCharsets.UTF_8).contains(eventMarker)) {
+                            return true;
+                        }
+                    }
                 }
             } catch (IOException ignored) {
                 // The writer may be rotating or flushing this bounded fixture file.
             }
             try {
-                Thread.sleep(5L);
+                Thread.sleep(2L);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 return false;
