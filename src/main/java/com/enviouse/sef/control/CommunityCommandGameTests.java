@@ -351,6 +351,13 @@ public final class CommunityCommandGameTests {
                             + (ticketPermission == null
                             ? "missing"
                             : PermissionService.decide(actor, ticketPermission).denialReason()));
+            var privacyRoot = helper.getLevel().getServer().getCommands().getDispatcher().getRoot().getChild("privacy");
+            helper.assertTrue(privacyRoot != null, "privacy workflow root was not registered");
+            helper.assertTrue(
+                    privacyRoot != null && privacyRoot.getChild("request") != null,
+                    "privacy request route was not registered");
+            helper.assertTrue(privacyRoot != null && privacyRoot.canUse(ticketSource),
+                    "privacy request root is unavailable to the player workflow");
             int ticketResult = executeWithPermissions(
                     helper,
                     actor,
@@ -425,6 +432,9 @@ public final class CommunityCommandGameTests {
             var root = helper.getLevel().getServer().getCommands().getDispatcher().getRoot().getChild(rootName);
             helper.fail(
                     "community command syntax was rejected, "
+                            + "command="
+                            + command
+                            + ", "
                             + exception.getMessage()
                             + ", root="
                             + (root == null ? "missing" : root.getChildren().stream()

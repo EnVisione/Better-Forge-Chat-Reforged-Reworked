@@ -313,7 +313,8 @@ public final class CommunityCommands {
                                 "access application",
                                 StringArgumentType.getString(context, "description")))));
         dispatcher.register(Commands.literal("privacy")
-                .requires(source -> can(source, "sef:control.privacy.view"))
+                .requires(source -> can(source, "sef:control.privacy.view")
+                        || can(source, "sef:control.privacy.request"))
                 .executes(context -> ownQueueStatus(context.getSource(), "privacy"))
                 .then(Commands.literal("request")
                         .requires(source -> can(source, "sef:control.privacy.request"))
