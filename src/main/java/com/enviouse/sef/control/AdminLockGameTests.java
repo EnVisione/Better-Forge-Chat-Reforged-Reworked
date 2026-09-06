@@ -151,7 +151,7 @@ public final class AdminLockGameTests {
             int invalidateResult = execute(
                     helper,
                     player,
-                    "adminlock invalidate @s invalidated-by-test",
+                    "adminlock invalidate " + player.getGameProfile().getName() + " invalidated-by-test",
                     "invalidate");
             helper.assertTrue(invalidateResult > 0, "admin lock invalidate command did not report success");
             helper.assertTrue(
@@ -170,7 +170,7 @@ public final class AdminLockGameTests {
             int releaseResult = execute(
                     helper,
                     player,
-                    "adminlock release @s released-by-test",
+                    "adminlock release " + player.getGameProfile().getName() + " released-by-test",
                     "release");
             helper.assertTrue(releaseResult > 0, "admin lock release command did not report success");
             helper.assertTrue(
