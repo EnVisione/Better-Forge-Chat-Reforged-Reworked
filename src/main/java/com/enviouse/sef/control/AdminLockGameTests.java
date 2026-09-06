@@ -170,7 +170,7 @@ public final class AdminLockGameTests {
             int releaseResult = executeConsole(
                     helper,
                     player,
-                    "adminlock release @a[uuid=" + player.getUUID() + "] released-by-test",
+                    "adminlock release @p[distance=..0.5] released-by-test",
                     "release");
             helper.assertTrue(releaseResult > 0, "admin lock release command did not report success");
             helper.assertTrue(
@@ -209,7 +209,9 @@ public final class AdminLockGameTests {
                 player,
                 command,
                 action,
-                helper.getLevel().getServer().createCommandSourceStack());
+                helper.getLevel().getServer().createCommandSourceStack()
+                        .withLevel(player.serverLevel())
+                        .withPosition(player.position()));
     }
 
     private static int executeWithSource(
