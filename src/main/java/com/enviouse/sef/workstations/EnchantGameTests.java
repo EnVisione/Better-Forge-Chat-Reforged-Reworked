@@ -148,7 +148,7 @@ public final class EnchantGameTests {
                 player.getUUID(),
                 "enchant",
                 "sef:enchant.apply",
-                Set.of("sef.commands.enchant.self"),
+                Set.of("sef.commands.enchant", "sef.commands.enchant.self"),
                 () -> {
                     try {
                         return helper.getLevel().getServer().getCommands().getDispatcher().execute(
