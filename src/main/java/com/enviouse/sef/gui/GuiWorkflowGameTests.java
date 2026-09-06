@@ -1179,6 +1179,83 @@ public final class GuiWorkflowGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 600)
+    public static void metadataOnlyConsoleInvalidInputIsRejectedWithoutMutation(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        List<String> failures = new ArrayList<>();
+        Set<String> covered = new LinkedHashSet<>();
+
+        for (var definition : KernelServices.catalog().entries()) {
+            if (definition.auditClass() != AuditService.AuditClass.METADATA_ONLY
+                    || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            GuiWorkflowCompiler.WorkflowDefinition workflow;
+            try {
+                workflow = GuiWorkflowCompiler.compile(definition, dispatcher, source);
+            } catch (IllegalArgumentException exception) {
+                continue;
+            }
+            var variant = workflow.variants().stream()
+                    .filter(candidate -> candidate.fields().isEmpty())
+                    .filter(candidate -> isCanonicalVariant(definition, candidate))
+                    .findFirst()
+                    .orElse(null);
+            if (variant == null) {
+                continue;
+            }
+            String command = render(variant);
+            if (command.isBlank() || !covered.add(definition.id())) {
+                continue;
+            }
+            String invalidCommand = command + " __sef_invalid__";
+            ParseResults<CommandSourceStack> parsed = dispatcher.parse(invalidCommand, source);
+            boolean rejected = !parsed.getExceptions().isEmpty() || parsed.getReader().canRead();
+            if (!rejected) {
+                failures.add(definition.id() + ", invalid input parsed, " + invalidCommand);
+                covered.remove(definition.id());
+                continue;
+            }
+            try {
+                int result = dispatcher.execute(invalidCommand, source);
+                if (result > 0) {
+                    failures.add(definition.id() + ", invalid input executed, " + invalidCommand);
+                    covered.remove(definition.id());
+                    continue;
+                }
+            } catch (Exception ignored) {
+                // Brigadier rejection is the expected failure boundary.
+            }
+            CommandEffectEvidenceWriter.record(
+                    definition.id(),
+                    "metadataOnlyConsoleInvalidInputIsRejectedWithoutMutation",
+                    "failure",
+                    false,
+                    true,
+                    "invalid_input");
+        }
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Metadata-only invalid input, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "metadata-only invalid input failed, "
+                        + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(!covered.isEmpty(), "no metadata-only invalid input routes were covered");
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Metadata-only invalid input covered {} action routes",
+                covered.size());
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void everyPlayerFacingActionCompilesToATypedWorkflow(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
