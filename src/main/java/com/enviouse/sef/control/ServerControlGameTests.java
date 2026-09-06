@@ -119,6 +119,16 @@ public final class ServerControlGameTests {
                 helper.assertTrue(
                         transition.reason() == ActionResult.ReasonCode.PROVIDER_ERROR,
                         feature + " generic state transition returned the wrong unavailable reason: " + transition.reason());
+                var resolution = repository.transition(
+                        record.id(),
+                        actor,
+                        ServerControlRepository.RecordState.RESOLVED,
+                        record.revision(),
+                        "unavailable resolution contract");
+                helper.assertTrue(!resolution.successful(), feature + " resolution transition unexpectedly succeeded");
+                helper.assertTrue(
+                        resolution.reason() == ActionResult.ReasonCode.PROVIDER_ERROR,
+                        feature + " resolution transition returned the wrong unavailable reason: " + resolution.reason());
                 helper.assertTrue(
                         repository.find(record.id()).orElseThrow().equals(record),
                         feature + " unavailable routes changed the record");
@@ -419,6 +429,7 @@ public final class ServerControlGameTests {
             row.addProperty("previewDenied", true);
             row.addProperty("executionDenied", true);
             row.addProperty("genericTransitionDenied", true);
+            row.addProperty("resolutionDenied", true);
             row.addProperty("unchangedRecord", true);
             row.addProperty("noDurableOperation", true);
             row.addProperty("reason", "provider_error");
