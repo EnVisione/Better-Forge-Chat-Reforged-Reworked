@@ -169,6 +169,88 @@ public final class CommunityCommandGameTests {
         }
     }
 
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void friendCommandsPersistAcceptAndRemoveRelationship(GameTestHelper helper) {
+        ServerPlayer actor = helper.makeMockServerPlayerInLevel();
+        ServerPlayer target = helper.makeMockServerPlayerInLevel();
+        String targetKey = target.getUUID().toString();
+        String actorKey = actor.getUUID().toString();
+        target.teleportTo(actor.getX() + 100.0D, actor.getY(), actor.getZ());
+
+        helper.runAfterDelay(2, () -> {
+            try {
+                int requestResult = executeWithPermissions(
+                        helper,
+                        actor,
+                        "friend add @p[distance=90..110]");
+                helper.assertTrue(requestResult > 0, "friend request did not report success");
+                helper.assertTrue(
+                        KernelServices.communityState()
+                                .find("friend_request", target.getUUID(), actorKey)
+                                .isPresent(),
+                        "friend request did not persist state");
+                CommandEffectEvidenceWriter.record(
+                        "sef:control.friends.request",
+                        "friendCommandsPersistAcceptAndRemoveRelationshipRequest",
+                        "success",
+                        true,
+                        true,
+                        "none");
+
+                int acceptResult = executeWithPermissions(
+                        helper,
+                        target,
+                        "friend accept " + actor.getGameProfile().getName());
+                helper.assertTrue(acceptResult > 0, "friend acceptance did not report success");
+                helper.assertTrue(
+                        KernelServices.communityState()
+                                .find("friend", actor.getUUID(), targetKey)
+                                .isPresent(),
+                        "accepted friendship missing from actor state");
+                helper.assertTrue(
+                        KernelServices.communityState()
+                                .find("friend", target.getUUID(), actorKey)
+                                .isPresent(),
+                        "accepted friendship missing from target state");
+                CommandEffectEvidenceWriter.record(
+                        "sef:control.friends.accept",
+                        "friendCommandsPersistAcceptAndRemoveRelationshipAccept",
+                        "success",
+                        true,
+                        true,
+                        "none");
+
+                int removeResult = executeWithPermissions(
+                        helper,
+                        actor,
+                        "friend remove @p[distance=90..110]");
+                helper.assertTrue(removeResult > 0, "friend removal did not report success");
+                helper.assertTrue(
+                        KernelServices.communityState()
+                                .find("friend", actor.getUUID(), targetKey)
+                                .isEmpty(),
+                        "friend removal did not clear actor state");
+                helper.assertTrue(
+                        KernelServices.communityState()
+                                .find("friend", target.getUUID(), actorKey)
+                                .isEmpty(),
+                        "friend removal did not clear target state");
+                CommandEffectEvidenceWriter.record(
+                        "sef:control.friends.remove",
+                        "friendCommandsPersistAcceptAndRemoveRelationshipRemove",
+                        "success",
+                        true,
+                        true,
+                        "none");
+                helper.succeed();
+            } finally {
+                KernelServices.communityState().remove("friend_request", target.getUUID(), actorKey);
+                KernelServices.communityState().remove("friend", actor.getUUID(), targetKey);
+                KernelServices.communityState().remove("friend", target.getUUID(), actorKey);
+            }
+        });
+    }
+
     private static int executeWithPermissions(
             GameTestHelper helper,
             ServerPlayer actor,
