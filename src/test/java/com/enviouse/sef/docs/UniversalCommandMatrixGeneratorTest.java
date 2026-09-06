@@ -192,6 +192,81 @@ class UniversalCommandMatrixGeneratorTest {
         }
     }
 
+    @Test
+    void unavailableRowsRemainPartialWithoutCandidateBoundEvidence() {
+        String oldRoot = System.getProperty("sef.audit.evidenceRoot");
+        String oldCommit = System.getProperty("sef.audit.candidateCommit");
+        String oldSha256 = System.getProperty("sef.audit.candidateSha256");
+        try {
+            System.clearProperty("sef.audit.evidenceRoot");
+            System.clearProperty("sef.audit.candidateCommit");
+            System.clearProperty("sef.audit.candidateSha256");
+            JsonObject matrix = UniversalCommandMatrixGenerator.generate();
+            JsonObject unavailable = matrix.getAsJsonArray("rows").asList().stream()
+                    .map(JsonElement::getAsJsonObject)
+                    .filter(value -> value.get("category").getAsString().equals("unavailable-matrix"))
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals("partial", unavailable.get("status").getAsString());
+            assertEquals(
+                    "candidate-bound unavailable runtime evidence is missing",
+                    unavailable.getAsJsonObject("dimensions")
+                            .getAsJsonObject("effect").get("reason").getAsString());
+        } finally {
+            restoreProperty("sef.audit.evidenceRoot", oldRoot);
+            restoreProperty("sef.audit.candidateCommit", oldCommit);
+            restoreProperty("sef.audit.candidateSha256", oldSha256);
+        }
+    }
+
+    @Test
+    void unavailableRowsAcceptOnlyCompleteCandidateBoundEvidence() throws Exception {
+        Path evidence = temporaryDirectory.resolve("unavailable-evidence");
+        Files.createDirectories(evidence);
+        JsonObject record = new JsonObject();
+        record.addProperty("schemaVersion", 1);
+        record.addProperty("candidateCommit", "0123456789abcdef0123456789abcdef01234567");
+        record.addProperty("candidateSha256", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        record.addProperty("source", "test");
+        com.google.gson.JsonArray rows = new com.google.gson.JsonArray();
+        for (String family : CommandInventoryGenerator.UNAVAILABLE_FAMILIES) {
+            JsonObject row = new JsonObject();
+            row.addProperty("familyId", family);
+            row.addProperty("result", "pass");
+            row.addProperty("previewDenied", true);
+            row.addProperty("executionDenied", true);
+            row.addProperty("unchangedRecord", true);
+            row.addProperty("noDurableOperation", true);
+            row.addProperty("reason", "provider_error");
+            rows.add(row);
+        }
+        record.addProperty("rowCount", rows.size());
+        record.add("rows", rows);
+        Files.writeString(
+                evidence.resolve("unavailable-runtime.json"),
+                record.toString(),
+                StandardCharsets.UTF_8);
+        String oldRoot = System.getProperty("sef.audit.evidenceRoot");
+        String oldCommit = System.getProperty("sef.audit.candidateCommit");
+        String oldSha256 = System.getProperty("sef.audit.candidateSha256");
+        try {
+            System.setProperty("sef.audit.evidenceRoot", evidence.toString());
+            System.setProperty("sef.audit.candidateCommit", record.get("candidateCommit").getAsString());
+            System.setProperty("sef.audit.candidateSha256", record.get("candidateSha256").getAsString());
+            JsonObject matrix = UniversalCommandMatrixGenerator.generate();
+            JsonObject unavailable = matrix.getAsJsonArray("rows").asList().stream()
+                    .map(JsonElement::getAsJsonObject)
+                    .filter(value -> value.get("category").getAsString().equals("unavailable-matrix"))
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals("pass", unavailable.get("status").getAsString());
+        } finally {
+            restoreProperty("sef.audit.evidenceRoot", oldRoot);
+            restoreProperty("sef.audit.candidateCommit", oldCommit);
+            restoreProperty("sef.audit.candidateSha256", oldSha256);
+        }
+    }
+
     private static void restoreProperty(String key, String value) {
         if (value == null) {
             System.clearProperty(key);

@@ -53,6 +53,7 @@ public final class UniversalCommandMatrixGenerator {
     public static JsonObject generate() {
         JsonObject inventory = CommandInventoryGenerator.generate();
         RuntimeEvidence runtimeEvidence = RuntimeEvidence.load();
+        UnavailableEvidence unavailableEvidence = UnavailableEvidence.load();
         JsonArray sourceRows = inventory.getAsJsonArray("rows");
         Map<String, JsonObject> actions = new LinkedHashMap<>();
         Map<String, List<String>> routes = new LinkedHashMap<>();
@@ -77,7 +78,7 @@ public final class UniversalCommandMatrixGenerator {
         for (JsonElement element : sourceRows) {
             JsonObject row = element.getAsJsonObject();
             if (row.get("category").getAsString().equals("unavailable")) {
-                rows.add(unavailableRow(row));
+                rows.add(unavailableRow(row, unavailableEvidence));
             }
         }
         int openRows = 0;
@@ -281,15 +282,15 @@ public final class UniversalCommandMatrixGenerator {
         return row;
     }
 
-    private static JsonObject unavailableRow(JsonObject source) {
+    private static JsonObject unavailableRow(JsonObject source, UnavailableEvidence evidence) {
         String family = source.get("semanticKey").getAsString();
         JsonObject row = baseRow("unavailable-matrix", family, "runtime", "implemented");
         row.add("sourceLocations", source.getAsJsonArray("sourceLocations").deepCopy());
         row.addProperty("actionId", family);
         row.addProperty("canonicalRoute", "unavailable:" + family);
         row.add("orderedRoutes", new JsonArray());
-        row.add("dimensions", unavailableDimensions());
-        row.addProperty("status", "pass");
+        row.add("dimensions", unavailableDimensions(family, evidence));
+        row.addProperty("status", evidence.successful(family) ? "pass" : "partial");
         return row;
     }
 
@@ -405,26 +406,90 @@ public final class UniversalCommandMatrixGenerator {
         }
     }
 
-    private static JsonObject unavailableDimensions() {
+    private record UnavailableEvidence(Map<String, JsonObject> successfulRows, String evidenceSource) {
+        private static UnavailableEvidence load() {
+            String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
+            String expectedCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
+            String expectedSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
+            if (evidenceRoot.isEmpty() || expectedCommit.isEmpty() || expectedSha256.isEmpty()) {
+                return new UnavailableEvidence(Map.of(), "unavailable-runtime.json");
+            }
+            Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
+            Path file = root.resolve("unavailable-runtime.json");
+            if (!Files.exists(file)) {
+                return new UnavailableEvidence(Map.of(), "unavailable-runtime.json");
+            }
+            try {
+                if (!Files.isRegularFile(file) || Files.isSymbolicLink(file)) {
+                    throw new IllegalArgumentException("unavailable runtime evidence target is invalid");
+                }
+                JsonObject record = JsonParser.parseString(
+                        Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+                if (!record.has("schemaVersion") || record.get("schemaVersion").getAsInt() != 1
+                        || !record.has("candidateCommit") || !record.has("candidateSha256")
+                        || !expectedCommit.equals(record.get("candidateCommit").getAsString())
+                        || !expectedSha256.equals(record.get("candidateSha256").getAsString())
+                        || !expectedCommit.matches("[0-9a-f]{40}")
+                        || !expectedSha256.matches("[0-9a-f]{64}")
+                        || !record.has("rows") || !record.get("rows").isJsonArray()
+                        || !record.has("rowCount")
+                        || record.get("rowCount").getAsInt() != record.getAsJsonArray("rows").size()
+                        || record.getAsJsonArray("rows").size() != CommandInventoryGenerator.UNAVAILABLE_FAMILIES.size()) {
+                    throw new IllegalArgumentException("unavailable runtime evidence identity or shape is invalid");
+                }
+                Map<String, JsonObject> successful = new LinkedHashMap<>();
+                for (JsonElement element : record.getAsJsonArray("rows")) {
+                    JsonObject row = element.getAsJsonObject();
+                    String family = row.get("familyId").getAsString();
+                    if (!CommandInventoryGenerator.UNAVAILABLE_FAMILIES.contains(family)
+                            || !"pass".equals(row.get("result").getAsString())
+                            || !row.get("previewDenied").getAsBoolean()
+                            || !row.get("executionDenied").getAsBoolean()
+                            || !row.get("unchangedRecord").getAsBoolean()
+                            || !row.get("noDurableOperation").getAsBoolean()
+                            || !"provider_error".equals(row.get("reason").getAsString())
+                            || successful.putIfAbsent(family, row) != null) {
+                        throw new IllegalArgumentException("unavailable runtime evidence row is invalid");
+                    }
+                }
+                if (!successful.keySet().equals(CommandInventoryGenerator.UNAVAILABLE_FAMILIES)) {
+                    throw new IllegalArgumentException("unavailable runtime evidence family set is incomplete");
+                }
+                return new UnavailableEvidence(Map.copyOf(successful), "unavailable-runtime.json");
+            } catch (RuntimeException | IOException exception) {
+                throw new IllegalStateException("unavailable runtime evidence is invalid", exception);
+            }
+        }
+
+        private boolean successful(String family) {
+            return successfulRows.containsKey(family);
+        }
+    }
+
+    private static JsonObject unavailableDimensions(String family, UnavailableEvidence evidence) {
         JsonObject dimensions = new JsonObject();
-        String evidence = "task-011-current-rerun-b23-20260905/task-011-b23-report.md";
-        add(dimensions, "registration", "pass", "unavailable handler absence and diagnostics", evidence);
-        add(dimensions, "discovery", "pass", "unavailable family is named and not advertised", evidence);
-        add(dimensions, "authority", "pass", "owner and server permission contexts fail closed", evidence);
-        add(dimensions, "sources", "pass", "actor and server execution attempts fail closed", evidence);
-        add(dimensions, "targets", "pass", "no target mutation occurs", evidence);
-        add(dimensions, "arguments", "pass", "unavailable schema cannot become executable", evidence);
-        add(dimensions, "policy", "pass", "generic activation and resolution are denied", evidence);
-        add(dimensions, "preview", "pass", "preview never becomes ready", evidence);
-        add(dimensions, "effect", "pass", "execution leaves the record open and unchanged", evidence);
-        add(dimensions, "failure", "pass", "provider error is returned without mutation", evidence);
-        add(dimensions, "persistence", "pass", "revision and state remain unchanged", evidence);
-        add(dimensions, "route_equivalence", "pass", "generic and indirect transitions cannot activate the family", evidence);
-        add(dimensions, "feedback", "pass", "diagnostics retain unavailable classification", evidence);
-        add(dimensions, "audit", "pass", "no successful mutation audit is emitted", evidence);
-        add(dimensions, "redaction", "pass", "negative result contains no sensitive execution payload", evidence);
+        String status = evidence.successful(family) ? "pass" : "partial";
+        String reference = evidence.evidenceSource();
+        String reason = evidence.successful(family)
+                ? "candidate-bound unavailable runtime contract passes"
+                : "candidate-bound unavailable runtime evidence is missing";
+        add(dimensions, "registration", status, reason, reference);
+        add(dimensions, "discovery", status, reason, reference);
+        add(dimensions, "authority", status, reason, reference);
+        add(dimensions, "sources", status, reason, reference);
+        add(dimensions, "targets", status, reason, reference);
+        add(dimensions, "arguments", status, reason, reference);
+        add(dimensions, "policy", status, reason, reference);
+        add(dimensions, "preview", status, reason, reference);
+        add(dimensions, "effect", status, reason, reference);
+        add(dimensions, "failure", status, reason, reference);
+        add(dimensions, "persistence", status, reason, reference);
+        add(dimensions, "route_equivalence", status, reason, reference);
+        add(dimensions, "feedback", status, reason, reference);
+        add(dimensions, "audit", status, reason, reference);
+        add(dimensions, "redaction", status, reason, reference);
         add(dimensions, "client_fixture", "not_applicable", "unavailable family has no client action route", "task-028-universal-matrix-ledger.md");
-        add(dimensions, "linux_shared_runtime", "pass", "canonical Linux negative contract passes", evidence);
+        add(dimensions, "linux_shared_runtime", status, reason, reference);
         add(dimensions, "host_specific_runtime", "not_applicable", "no host-specific unavailable path was exercised", "task-025-audit-inventory-report.md");
         add(dimensions, "native_dependency", "not_applicable", "unavailable execution does not reach a native writer", "task-028-universal-matrix-ledger.md");
         return dimensions;

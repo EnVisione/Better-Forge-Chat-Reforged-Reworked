@@ -1,5 +1,7 @@
 package com.enviouse.sef.control;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.enviouse.sef.kernel.ActionResult;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -12,6 +14,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -103,6 +106,7 @@ public final class ServerControlGameTests {
                         repository.executions(null).isEmpty(),
                         feature + " unavailable execution created a durable operation");
             }
+            writeUnavailableRuntimeEvidence();
             helper.succeed();
         } catch (IOException exception) {
             throw new IllegalStateException("unavailable control GameTest storage is unavailable", exception);
@@ -300,6 +304,47 @@ public final class ServerControlGameTests {
             metadata.put("field." + field.id(), value);
         }
         return Map.copyOf(metadata);
+    }
+
+    private static void writeUnavailableRuntimeEvidence() throws IOException {
+        String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
+        if (evidenceRoot.isEmpty()) {
+            return;
+        }
+        String candidateCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
+        String candidateSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
+        if (!candidateCommit.matches("[0-9a-f]{40}") || !candidateSha256.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("candidate identity properties are required");
+        }
+        Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
+        if (Files.isSymbolicLink(root)) {
+            throw new IllegalArgumentException("unavailable runtime evidence root is a symlink");
+        }
+        Files.createDirectories(root);
+        Path output = root.resolve("unavailable-runtime.json");
+        if (Files.isSymbolicLink(output)) {
+            throw new IllegalArgumentException("unavailable runtime evidence target is a symlink");
+        }
+        JsonArray rows = new JsonArray();
+        for (String feature : MinecraftServerControlRuntime.unavailableRuntimeFeatures()) {
+            JsonObject row = new JsonObject();
+            row.addProperty("familyId", feature);
+            row.addProperty("result", "pass");
+            row.addProperty("previewDenied", true);
+            row.addProperty("executionDenied", true);
+            row.addProperty("unchangedRecord", true);
+            row.addProperty("noDurableOperation", true);
+            row.addProperty("reason", "provider_error");
+            rows.add(row);
+        }
+        JsonObject record = new JsonObject();
+        record.addProperty("schemaVersion", 1);
+        record.addProperty("candidateCommit", candidateCommit);
+        record.addProperty("candidateSha256", candidateSha256);
+        record.addProperty("source", "unavailableServerControlFamiliesFailClosedWithoutMutation");
+        record.addProperty("rowCount", rows.size());
+        record.add("rows", rows);
+        Files.writeString(output, record.toString() + System.lineSeparator(), StandardCharsets.UTF_8);
     }
 
     private static void deleteTree(Path root) {
