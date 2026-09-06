@@ -348,7 +348,7 @@ public final class UniversalCommandMatrixGenerator {
         add(dimensions, "linux_shared_runtime", "partial", "dedicated server, representative runtime, catalog feedback and audit boundary, and shared executor outcome checks pass; universal effects remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
         add(dimensions, "host_specific_runtime", "not_applicable", "no macOS or Windows non-client host-specific path changed or exercised", "task-025-audit-inventory-report.md");
         add(dimensions, "native_dependency", "partial", "candidate dependency, native writer identity, duplicate-runtime inspection, and shared executor audit joins pass; domain action sink joins remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
-        if (runtimeEvidence.successful(action.get("semanticKey").getAsString())) {
+        if (runtimeEvidence.audited(action.get("semanticKey").getAsString())) {
             String evidence = runtimeEvidence.evidenceFor(action.get("semanticKey").getAsString());
             add(dimensions, "audit", "pass", "catalog-wide console execution emitted one bounded correlated audit event", evidence);
             add(dimensions, "redaction", "pass", "catalog-wide console execution emitted metadata-only redaction without raw command parameters", evidence);
@@ -454,6 +454,7 @@ public final class UniversalCommandMatrixGenerator {
     }
 
     private record RuntimeEvidence(
+            Map<String, JsonObject> auditedRows,
             Map<String, JsonObject> successfulRows,
             Map<String, String> evidenceSources
     ) {
@@ -462,9 +463,10 @@ public final class UniversalCommandMatrixGenerator {
             String expectedCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
             String expectedSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
             if (evidenceRoot.isEmpty() || expectedCommit.isEmpty() || expectedSha256.isEmpty()) {
-                return new RuntimeEvidence(Map.of(), Map.of());
+                return new RuntimeEvidence(Map.of(), Map.of(), Map.of());
             }
             try {
+                Map<String, JsonObject> audited = new LinkedHashMap<>();
                 Map<String, JsonObject> successful = new LinkedHashMap<>();
                 Map<String, String> evidenceSources = new LinkedHashMap<>();
                 Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
@@ -488,11 +490,13 @@ public final class UniversalCommandMatrixGenerator {
                     for (JsonElement element : record.getAsJsonArray("rows")) {
                         JsonObject row = element.getAsJsonObject();
                         String actionId = row.get("actionId").getAsString();
-                        if (!row.get("result").getAsString().equals("success")
+                        String result = row.get("result").getAsString();
+                        String auditResult = row.get("auditResult").getAsString();
+                        if (!Set.of("success", "non_positive").contains(result)
                                 || row.get("auditEventCount").getAsInt() != 1
                                 || !Set.of("console", "player").contains(row.get("sourceType").getAsString())
-                                || !row.get("auditResult").getAsString().equals("success")
-                                || !row.get("auditClass").getAsString().equals("metadata_only")
+                                || !Set.of("success", "rejected", "failed", "outcome_unknown").contains(auditResult)
+                                || row.get("auditClass").getAsString().equals("none")
                                 || !row.get("redactionClass").getAsString().equals("metadata")
                                 || row.has("redactionSafe") && !row.get("redactionSafe").getAsBoolean()
                                 || !booleanProperty(row, "auditDurable")
@@ -501,16 +505,22 @@ public final class UniversalCommandMatrixGenerator {
                                 || !row.get("commandDigest").getAsString().matches("[0-9a-f]{64}")) {
                             continue;
                         }
-                        JsonObject previous = successful.putIfAbsent(actionId, row);
-                        if (previous == null) {
+                        JsonObject previousAudited = audited.putIfAbsent(actionId, row);
+                        if (previousAudited == null) {
                             evidenceSources.put(actionId, fileName);
-                        } else if (!sameProjection(previous, row)) {
+                        } else if (!sameProjection(previousAudited, row)) {
                             throw new IllegalArgumentException(
                                     "inconsistent catalog runtime evidence action " + actionId);
                         }
+                        if (result.equals("success") && auditResult.equals("success")) {
+                            successful.putIfAbsent(actionId, row);
+                        }
                     }
                 }
-                return new RuntimeEvidence(Map.copyOf(successful), Map.copyOf(evidenceSources));
+                return new RuntimeEvidence(
+                        Map.copyOf(audited),
+                        Map.copyOf(successful),
+                        Map.copyOf(evidenceSources));
             } catch (RuntimeException | IOException exception) {
                 throw new IllegalStateException("catalog runtime evidence is invalid", exception);
             }
@@ -520,14 +530,16 @@ public final class UniversalCommandMatrixGenerator {
             return successfulRows.containsKey(actionId);
         }
 
+        private boolean audited(String actionId) {
+            return auditedRows.containsKey(actionId);
+        }
+
         private String evidenceFor(String actionId) {
             return evidenceSources.getOrDefault(actionId, "catalog-console-runtime.json");
         }
 
         private static boolean sameProjection(JsonObject first, JsonObject second) {
-            return first.get("result").equals(second.get("result"))
-                    && first.get("auditEventCount").equals(second.get("auditEventCount"))
-                    && first.get("auditResult").equals(second.get("auditResult"))
+            return first.get("auditEventCount").equals(second.get("auditEventCount"))
                     && first.get("auditClass").equals(second.get("auditClass"))
                     && first.get("redactionClass").equals(second.get("redactionClass"));
         }
