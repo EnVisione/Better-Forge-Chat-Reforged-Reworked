@@ -11,6 +11,7 @@ import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.command.ShortcutRegistry;
 import com.enviouse.sef.kernel.policy.FeatureGateService;
 import com.mojang.brigadier.ParseResults;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.gametest.framework.GameTest;
@@ -1289,6 +1290,34 @@ public final class GuiWorkflowGameTests {
                 afterFirstPass > before && afterSecondPass == afterFirstPass,
                 true,
                 "none");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void giveRejectsUnknownItemWithoutMutation(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var target = helper.makeMockServerPlayerInLevel();
+        int before = target.getInventory().countItem(Items.STONE);
+        int result = Integer.MIN_VALUE;
+        boolean syntaxRejected = false;
+        try {
+            result = server.getCommands().getDispatcher().execute(
+                    "give " + target.getGameProfile().getName() + " minecraft:not_real",
+                    server.createCommandSourceStack());
+        } catch (CommandSyntaxException exception) {
+            syntaxRejected = true;
+        }
+        helper.assertTrue(syntaxRejected || result <= 0, "invalid give input was accepted");
+        helper.assertTrue(
+                target.getInventory().countItem(Items.STONE) == before,
+                "invalid give input changed the target inventory");
+        CommandEffectEvidenceWriter.record(
+                "sef:item.give.others",
+                "giveRejectsUnknownItemWithoutMutation",
+                "failure",
+                false,
+                true,
+                "invalid_input");
         helper.succeed();
     }
 

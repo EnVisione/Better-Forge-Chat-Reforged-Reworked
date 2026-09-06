@@ -47,4 +47,33 @@ public final class PlayerUtilityGameTests {
             helper.fail("feed command failed through the live dispatcher");
         }
     }
+
+    @GameTest(template = "empty")
+    public static void feedRejectsExtraArgumentWithoutMutation(GameTestHelper helper) {
+        ServerPlayer target = helper.makeMockServerPlayerInLevel();
+        target.getFoodData().setFoodLevel(4);
+        target.getFoodData().setSaturation(4.0F);
+        int result = Integer.MIN_VALUE;
+        boolean syntaxRejected = false;
+        try {
+            result = helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                    "feed " + target.getUUID() + " extra",
+                    helper.getLevel().getServer().createCommandSourceStack());
+        } catch (CommandSyntaxException exception) {
+            syntaxRejected = true;
+        }
+        helper.assertTrue(syntaxRejected || result <= 0, "invalid feed input was accepted");
+        helper.assertValueEqual(target.getFoodData().getFoodLevel(), 4, "invalid feed input changed hunger");
+        helper.assertTrue(
+                Float.compare(target.getFoodData().getSaturationLevel(), 4.0F) == 0,
+                "invalid feed input changed saturation");
+        CommandEffectEvidenceWriter.record(
+                "sef:utility.feed",
+                "feedRejectsExtraArgumentWithoutMutation",
+                "failure",
+                false,
+                true,
+                "invalid_input");
+        helper.succeed();
+    }
 }
