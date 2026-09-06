@@ -376,6 +376,52 @@ public final class ServerControlGameTests {
                         true,
                         true,
                         "none");
+
+                String manageActionId = "sef:control." + feature.id() + ".manage";
+                String stateCommand = "sef control " + feature.id()
+                        + " state " + record.id() + " cancelled " + record.revision() + " \"route audit\"";
+                int stateResult;
+                try {
+                    stateResult = DelegatedPermissionScope.preview(
+                            player.getUUID(),
+                            "server-control-manage",
+                            manageActionId,
+                            Set.of(
+                                    "sef.commands.sef.allowed",
+                                    "sef.commands.control",
+                                    "sef.commands.control." + feature.id() + ".manage"),
+                            () -> {
+                                try {
+                                    return helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                                            stateCommand,
+                                            player.createCommandSourceStack());
+                                } catch (CommandSyntaxException exception) {
+                                    throw new IllegalStateException(
+                                            "server control state route syntax was rejected for " + feature.id(),
+                                            exception);
+                                }
+                            });
+                } catch (RuntimeException exception) {
+                    throw new IllegalStateException(
+                            "server control state route failed for " + feature.id(),
+                            exception);
+                }
+                helper.assertTrue(stateResult > 0, feature.id() + " manage state route did not report success");
+                ServerControlRepository.ControlRecord transitioned = KernelServices.serverControls().find(record.id())
+                        .orElse(null);
+                helper.assertTrue(
+                        transitioned != null
+                                && transitioned.state() == ServerControlRepository.RecordState.CANCELLED
+                                && transitioned.revision() == record.revision() + 1L,
+                        feature.id() + " manage state route did not persist the cancelled revision");
+                createdRecords.set(createdRecords.size() - 1, transitioned);
+                CommandEffectEvidenceWriter.record(
+                        manageActionId,
+                        "everyServerControlCreateRouteCreatesAndCleansOwnedRecord",
+                        "success",
+                        true,
+                        true,
+                        "none");
             }
         } finally {
             for (ServerControlRepository.ControlRecord record : createdRecords) {
