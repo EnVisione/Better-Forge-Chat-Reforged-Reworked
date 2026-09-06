@@ -113,6 +113,60 @@ public final class InventoryGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty")
+    public static void moreCommandFillsHeldStackEffectEvidence(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 5));
+
+        try {
+            int result = helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                    "more", player.createCommandSourceStack());
+
+            helper.assertTrue(result > 0, "more command did not report success");
+            helper.assertValueEqual(player.getMainHandItem().getCount(), 64,
+                    "more command did not fill the held stack");
+            CommandEffectEvidenceWriter.record(
+                    "sef:inventory.more",
+                    "moreCommandFillsHeldStackEffectEvidence",
+                    "success",
+                    player.getMainHandItem().getCount() == 64,
+                    true,
+                    "none");
+            helper.succeed();
+        } catch (CommandSyntaxException exception) {
+            helper.fail("more command failed through the live dispatcher");
+        }
+    }
+
+    @GameTest(template = "empty")
+    public static void moreCommandRejectsFullHeldStackWithoutMutation(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 64));
+        ItemStack before = player.getMainHandItem().copy();
+        int result = Integer.MIN_VALUE;
+        boolean syntaxRejected = false;
+
+        try {
+            result = helper.getLevel().getServer().getCommands().getDispatcher().execute(
+                    "more", player.createCommandSourceStack());
+        } catch (CommandSyntaxException exception) {
+            syntaxRejected = true;
+        }
+
+        helper.assertTrue(syntaxRejected || result <= 0,
+                "more command accepted an already full stack");
+        helper.assertTrue(ItemStack.matches(before, player.getMainHandItem()),
+                "full more command changed the held stack");
+        CommandEffectEvidenceWriter.record(
+                "sef:inventory.more",
+                "moreCommandRejectsFullHeldStackWithoutMutation",
+                "failure",
+                false,
+                true,
+                "invalid_input");
+        helper.succeed();
+    }
+
     private static int count(Inventory inventory, Item item) {
         int count = 0;
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
