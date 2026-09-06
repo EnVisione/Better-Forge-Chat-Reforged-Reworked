@@ -137,6 +137,9 @@ class UniversalCommandMatrixGeneratorTest {
         row.addProperty("auditResult", "success");
         row.addProperty("auditClass", "metadata_only");
         row.addProperty("redactionClass", "metadata");
+        row.addProperty("auditDurable", true);
+        row.addProperty("actorAttributed", true);
+        row.addProperty("correlationBound", true);
         record.add("rows", new com.google.gson.JsonArray());
         record.getAsJsonArray("rows").add(row);
         Files.writeString(

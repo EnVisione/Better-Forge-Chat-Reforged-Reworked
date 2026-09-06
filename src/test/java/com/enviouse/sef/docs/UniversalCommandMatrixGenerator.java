@@ -495,6 +495,9 @@ public final class UniversalCommandMatrixGenerator {
                                 || !row.get("auditClass").getAsString().equals("metadata_only")
                                 || !row.get("redactionClass").getAsString().equals("metadata")
                                 || row.has("redactionSafe") && !row.get("redactionSafe").getAsBoolean()
+                                || !booleanProperty(row, "auditDurable")
+                                || !booleanProperty(row, "actorAttributed")
+                                || !booleanProperty(row, "correlationBound")
                                 || !row.get("commandDigest").getAsString().matches("[0-9a-f]{64}")) {
                             continue;
                         }
@@ -527,6 +530,13 @@ public final class UniversalCommandMatrixGenerator {
                     && first.get("auditResult").equals(second.get("auditResult"))
                     && first.get("auditClass").equals(second.get("auditClass"))
                     && first.get("redactionClass").equals(second.get("redactionClass"));
+        }
+
+        private static boolean booleanProperty(JsonObject row, String name) {
+            return row.has(name)
+                    && row.get(name).isJsonPrimitive()
+                    && row.getAsJsonPrimitive(name).isBoolean()
+                    && row.get(name).getAsBoolean();
         }
     }
 
