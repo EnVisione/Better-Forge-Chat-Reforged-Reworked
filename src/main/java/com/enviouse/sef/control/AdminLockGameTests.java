@@ -89,13 +89,13 @@ public final class AdminLockGameTests {
             int statusResult = execute(helper, player, "adminlock status", "status.self");
             helper.assertTrue(statusResult > 0, "admin lock status command did not report success");
             CommandEffectEvidenceWriter.recordReadOnly(
-                    "sef:adminlock.status",
+                    "sef:adminlock.status.self",
                     "adminLockSessionPolicyAndRecoveryRoutesPersistEffects");
 
             int historyResult = execute(helper, player, "adminlock history", "history.self");
             helper.assertTrue(historyResult > 0, "admin lock history command did not report success");
             CommandEffectEvidenceWriter.recordReadOnly(
-                    "sef:adminlock.history",
+                    "sef:adminlock.history.self",
                     "adminLockSessionPolicyAndRecoveryRoutesPersistEffects");
 
             int requireResult = execute(helper, player, "adminlock require staff true", "require");

@@ -2510,6 +2510,66 @@ public final class KernelServices {
                     "sef:control",
                     CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
         }
+        registerDomainCommand(
+                "sef:adminlock.status.self",
+                "adminlock status",
+                Set.of(),
+                "sef.commands.adminlock.status.self",
+                CommandDefinition.AccessClass.STAFF,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.SELF,
+                "sef.control",
+                AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:control",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:adminlock.status.others",
+                "adminlock status <player>",
+                Set.of(),
+                "sef.commands.adminlock.status.others",
+                CommandDefinition.AccessClass.STAFF,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.control",
+                AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:control",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:adminlock.history.self",
+                "adminlock history",
+                Set.of(),
+                "sef.commands.adminlock.history.self",
+                CommandDefinition.AccessClass.STAFF,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.SELF,
+                "sef.control",
+                AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:control",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:adminlock.history.others",
+                "adminlock history <player>",
+                Set.of(),
+                "sef.commands.adminlock.history.others",
+                CommandDefinition.AccessClass.STAFF,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.control",
+                AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:control",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:adminlock.breakglass.status",
+                "adminlock breakglass status",
+                Set.of(),
+                "sef.commands.adminlock.breakglass.status",
+                CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.SERVER,
+                "sef.control",
+                AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:control",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
         registerDomainAction(
                 "sef:workstation.super_enchant.mutate",
                 "sef workstation super_enchant mutate",

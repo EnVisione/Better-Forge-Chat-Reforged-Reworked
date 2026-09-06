@@ -2,7 +2,7 @@
 
 This file is generated from the sealed command, shortcut, and GUI descriptor registries. Change registry metadata and run `./gradlew generateProjectReferences` instead of editing this file.
 
-Catalog entries: 708. Shortcut entries: 315. GUI descriptors: 25.
+Catalog entries: 713. Shortcut entries: 315. GUI descriptors: 25.
 
 ## Commands
 
@@ -259,6 +259,29 @@ Catalog entries: 708. Shortcut entries: 315. GUI descriptors: 25.
 * Player facing: true.
 * Shared pipeline: required.
 
+### `sef:adminlock.breakglass.status`
+
+* Description: Executes the `/adminlock breakglass status` action through the shared policy pipeline.
+* Usage: `/adminlock breakglass status`.
+* Canonical route: `adminlock breakglass status`.
+* Example: `/adminlock breakglass status`.
+* Convenience roots: none.
+* Category: `control`.
+* Feature gate: `sef.control`.
+* Permissions: `sef.commands.adminlock.breakglass.status`.
+* Access class: `owner`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `server`.
+* Cooldown policy: `sef:adminlock.breakglass.status`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:control`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
 ### `sef:adminlock.challenge`
 
 * Description: Executes the `/adminlock challenge` action through the shared policy pipeline.
@@ -275,6 +298,52 @@ Catalog entries: 708. Shortcut entries: 315. GUI descriptors: 25.
 * Cooldown policy: `sef:adminlock.challenge`.
 * Confirmation: not required.
 * Audit class: `admin_action`.
+* GUI descriptor: `sef:control`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:adminlock.history.others`
+
+* Description: Executes the `/adminlock history <player>` action through the shared policy pipeline.
+* Usage: `/adminlock history <player>`.
+* Canonical route: `adminlock history <player>`.
+* Example: `/adminlock history <player>`.
+* Convenience roots: none.
+* Category: `control`.
+* Feature gate: `sef.control`.
+* Permissions: `sef.commands.adminlock.history.others`.
+* Access class: `staff`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `optional_player`.
+* Cooldown policy: `sef:adminlock.history.others`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:control`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:adminlock.history.self`
+
+* Description: Executes the `/adminlock history` action through the shared policy pipeline.
+* Usage: `/adminlock history`.
+* Canonical route: `adminlock history`.
+* Example: `/adminlock history`.
+* Convenience roots: none.
+* Category: `control`.
+* Feature gate: `sef.control`.
+* Permissions: `sef.commands.adminlock.history.self`.
+* Access class: `staff`.
+* Sources: `player`.
+* Target behavior: `self`.
+* Cooldown policy: `sef:adminlock.history.self`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
 * GUI descriptor: `sef:control`.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
@@ -413,6 +482,52 @@ Catalog entries: 708. Shortcut entries: 315. GUI descriptors: 25.
 * Cooldown policy: `sef:adminlock.session.open`.
 * Confirmation: not required.
 * Audit class: `admin_action`.
+* GUI descriptor: `sef:control`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:adminlock.status.others`
+
+* Description: Executes the `/adminlock status <player>` action through the shared policy pipeline.
+* Usage: `/adminlock status <player>`.
+* Canonical route: `adminlock status <player>`.
+* Example: `/adminlock status <player>`.
+* Convenience roots: none.
+* Category: `control`.
+* Feature gate: `sef.control`.
+* Permissions: `sef.commands.adminlock.status.others`.
+* Access class: `staff`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `optional_player`.
+* Cooldown policy: `sef:adminlock.status.others`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:control`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:adminlock.status.self`
+
+* Description: Executes the `/adminlock status` action through the shared policy pipeline.
+* Usage: `/adminlock status`.
+* Canonical route: `adminlock status`.
+* Example: `/adminlock status`.
+* Convenience roots: none.
+* Category: `control`.
+* Feature gate: `sef.control`.
+* Permissions: `sef.commands.adminlock.status.self`.
+* Access class: `staff`.
+* Sources: `player`.
+* Target behavior: `self`.
+* Cooldown policy: `sef:adminlock.status.self`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
 * GUI descriptor: `sef:control`.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.

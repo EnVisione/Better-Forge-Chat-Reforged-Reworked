@@ -2,7 +2,7 @@
 
 This file is generated from the permission manifest and sealed command registry. Change permission definitions and run `./gradlew generateProjectReferences` instead of editing this file.
 
-Permission entries: 12158. Defaults are fail closed unless a row explicitly states `true`.
+Permission entries: 12233. Defaults are fail closed unless a row explicitly states `true`.
 
 | Permission | Default | Name | Description | Catalog commands |
 | --- | --- | --- | --- | --- |
@@ -68,21 +68,21 @@ Permission entries: 12158. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.adminlock.breakglass.close` | `false` | Administrative lock commands.adminlock.breakglass.close | Controls the separately gated administrative lock action commands.adminlock.breakglass.close | `sef:adminlock.breakglass.close` |
 | `sef.commands.adminlock.breakglass.open` | `false` | Administrative lock commands.adminlock.breakglass.open | Controls the separately gated administrative lock action commands.adminlock.breakglass.open | `sef:adminlock.breakglass.open` |
 | `sef.commands.adminlock.breakglass.profile` | `false` | Administrative lock commands.adminlock.breakglass.profile | Controls the separately gated administrative lock action commands.adminlock.breakglass.profile | `sef:adminlock.breakglass.profile` |
-| `sef.commands.adminlock.breakglass.status` | `false` | Administrative lock commands.adminlock.breakglass.status | Controls the separately gated administrative lock action commands.adminlock.breakglass.status | none |
+| `sef.commands.adminlock.breakglass.status` | `false` | Administrative lock commands.adminlock.breakglass.status | Controls the separately gated administrative lock action commands.adminlock.breakglass.status | `sef:adminlock.breakglass.status` |
 | `sef.commands.adminlock.challenge` | `false` | Administrative lock commands.adminlock.challenge | Controls the separately gated administrative lock action commands.adminlock.challenge | `sef:adminlock.challenge` |
 | `sef.commands.adminlock.exempt` | `false` | Administrative lock commands.adminlock.exempt | Controls the separately gated administrative lock action commands.adminlock.exempt | none |
 | `sef.commands.adminlock.exemption.override` | `false` | Administrative lock commands.adminlock.exemption.override | Controls the separately gated administrative lock action commands.adminlock.exemption.override | none |
 | `sef.commands.adminlock.hierarchy.override` | `false` | Administrative lock commands.adminlock.hierarchy.override | Controls the separately gated administrative lock action commands.adminlock.hierarchy.override | none |
-| `sef.commands.adminlock.history.others` | `false` | Administrative lock commands.adminlock.history.others | Controls the separately gated administrative lock action commands.adminlock.history.others | none |
-| `sef.commands.adminlock.history.self` | `false` | Administrative lock commands.adminlock.history.self | Controls the separately gated administrative lock action commands.adminlock.history.self | none |
+| `sef.commands.adminlock.history.others` | `false` | Administrative lock commands.adminlock.history.others | Controls the separately gated administrative lock action commands.adminlock.history.others | `sef:adminlock.history.others` |
+| `sef.commands.adminlock.history.self` | `false` | Administrative lock commands.adminlock.history.self | Controls the separately gated administrative lock action commands.adminlock.history.self | `sef:adminlock.history.self` |
 | `sef.commands.adminlock.invalidate` | `false` | Administrative lock commands.adminlock.invalidate | Controls the separately gated administrative lock action commands.adminlock.invalidate | `sef:adminlock.invalidate` |
 | `sef.commands.adminlock.lock` | `false` | Administrative lock commands.adminlock.lock | Controls the separately gated administrative lock action commands.adminlock.lock | `sef:adminlock.lock` |
 | `sef.commands.adminlock.release` | `false` | Administrative lock commands.adminlock.release | Controls the separately gated administrative lock action commands.adminlock.release | `sef:adminlock.release` |
 | `sef.commands.adminlock.require` | `false` | Administrative lock commands.adminlock.require | Controls the separately gated administrative lock action commands.adminlock.require | `sef:adminlock.require` |
 | `sef.commands.adminlock.session.close` | `false` | Administrative lock commands.adminlock.session.close | Controls the separately gated administrative lock action commands.adminlock.session.close | `sef:adminlock.session.close` |
 | `sef.commands.adminlock.session.open` | `false` | Administrative lock commands.adminlock.session.open | Controls the separately gated administrative lock action commands.adminlock.session.open | `sef:adminlock.session.open` |
-| `sef.commands.adminlock.status.others` | `false` | Administrative lock commands.adminlock.status.others | Controls the separately gated administrative lock action commands.adminlock.status.others | none |
-| `sef.commands.adminlock.status.self` | `false` | Administrative lock commands.adminlock.status.self | Controls the separately gated administrative lock action commands.adminlock.status.self | none |
+| `sef.commands.adminlock.status.others` | `false` | Administrative lock commands.adminlock.status.others | Controls the separately gated administrative lock action commands.adminlock.status.others | `sef:adminlock.status.others` |
+| `sef.commands.adminlock.status.self` | `false` | Administrative lock commands.adminlock.status.self | Controls the separately gated administrative lock action commands.adminlock.status.self | `sef:adminlock.status.self` |
 | `sef.commands.adminlock.unlock` | `false` | Administrative lock commands.adminlock.unlock | Controls the separately gated administrative lock action commands.adminlock.unlock | `sef:adminlock.unlock` |
 | `sef.commands.afk` | `false` | afk command | Allows the afk player utility command | `sef:utility.afk` |
 | `sef.commands.alias.create` | `false` | Alias create | Allows the reviewed alias create lifecycle action | `sef:alias.create` |
@@ -1423,6 +1423,21 @@ Permission entries: 12158. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.adminlock.breakglass.profile.60` | `false` | Cooldown adminlock.breakglass.profile 60 | Sets the cooldown for sef:adminlock.breakglass.profile to 60 seconds | none |
 | `sef.cooldown.adminlock.breakglass.profile.600` | `false` | Cooldown adminlock.breakglass.profile 600 | Sets the cooldown for sef:adminlock.breakglass.profile to 600 seconds | none |
 | `sef.cooldown.adminlock.breakglass.profile.86400` | `false` | Cooldown adminlock.breakglass.profile 86400 | Sets the cooldown for sef:adminlock.breakglass.profile to 86400 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.0` | `false` | Cooldown adminlock.breakglass.status 0 | Sets the cooldown for sef:adminlock.breakglass.status to 0 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.1` | `false` | Cooldown adminlock.breakglass.status 1 | Sets the cooldown for sef:adminlock.breakglass.status to 1 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.10` | `false` | Cooldown adminlock.breakglass.status 10 | Sets the cooldown for sef:adminlock.breakglass.status to 10 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.120` | `false` | Cooldown adminlock.breakglass.status 120 | Sets the cooldown for sef:adminlock.breakglass.status to 120 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.15` | `false` | Cooldown adminlock.breakglass.status 15 | Sets the cooldown for sef:adminlock.breakglass.status to 15 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.1800` | `false` | Cooldown adminlock.breakglass.status 1800 | Sets the cooldown for sef:adminlock.breakglass.status to 1800 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.21600` | `false` | Cooldown adminlock.breakglass.status 21600 | Sets the cooldown for sef:adminlock.breakglass.status to 21600 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.3` | `false` | Cooldown adminlock.breakglass.status 3 | Sets the cooldown for sef:adminlock.breakglass.status to 3 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.30` | `false` | Cooldown adminlock.breakglass.status 30 | Sets the cooldown for sef:adminlock.breakglass.status to 30 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.300` | `false` | Cooldown adminlock.breakglass.status 300 | Sets the cooldown for sef:adminlock.breakglass.status to 300 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.3600` | `false` | Cooldown adminlock.breakglass.status 3600 | Sets the cooldown for sef:adminlock.breakglass.status to 3600 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.5` | `false` | Cooldown adminlock.breakglass.status 5 | Sets the cooldown for sef:adminlock.breakglass.status to 5 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.60` | `false` | Cooldown adminlock.breakglass.status 60 | Sets the cooldown for sef:adminlock.breakglass.status to 60 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.600` | `false` | Cooldown adminlock.breakglass.status 600 | Sets the cooldown for sef:adminlock.breakglass.status to 600 seconds | none |
+| `sef.cooldown.adminlock.breakglass.status.86400` | `false` | Cooldown adminlock.breakglass.status 86400 | Sets the cooldown for sef:adminlock.breakglass.status to 86400 seconds | none |
 | `sef.cooldown.adminlock.challenge.0` | `false` | Cooldown adminlock.challenge 0 | Sets the cooldown for sef:adminlock.challenge to 0 seconds | none |
 | `sef.cooldown.adminlock.challenge.1` | `false` | Cooldown adminlock.challenge 1 | Sets the cooldown for sef:adminlock.challenge to 1 seconds | none |
 | `sef.cooldown.adminlock.challenge.10` | `false` | Cooldown adminlock.challenge 10 | Sets the cooldown for sef:adminlock.challenge to 10 seconds | none |
@@ -1438,6 +1453,36 @@ Permission entries: 12158. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.adminlock.challenge.60` | `false` | Cooldown adminlock.challenge 60 | Sets the cooldown for sef:adminlock.challenge to 60 seconds | none |
 | `sef.cooldown.adminlock.challenge.600` | `false` | Cooldown adminlock.challenge 600 | Sets the cooldown for sef:adminlock.challenge to 600 seconds | none |
 | `sef.cooldown.adminlock.challenge.86400` | `false` | Cooldown adminlock.challenge 86400 | Sets the cooldown for sef:adminlock.challenge to 86400 seconds | none |
+| `sef.cooldown.adminlock.history.others.0` | `false` | Cooldown adminlock.history.others 0 | Sets the cooldown for sef:adminlock.history.others to 0 seconds | none |
+| `sef.cooldown.adminlock.history.others.1` | `false` | Cooldown adminlock.history.others 1 | Sets the cooldown for sef:adminlock.history.others to 1 seconds | none |
+| `sef.cooldown.adminlock.history.others.10` | `false` | Cooldown adminlock.history.others 10 | Sets the cooldown for sef:adminlock.history.others to 10 seconds | none |
+| `sef.cooldown.adminlock.history.others.120` | `false` | Cooldown adminlock.history.others 120 | Sets the cooldown for sef:adminlock.history.others to 120 seconds | none |
+| `sef.cooldown.adminlock.history.others.15` | `false` | Cooldown adminlock.history.others 15 | Sets the cooldown for sef:adminlock.history.others to 15 seconds | none |
+| `sef.cooldown.adminlock.history.others.1800` | `false` | Cooldown adminlock.history.others 1800 | Sets the cooldown for sef:adminlock.history.others to 1800 seconds | none |
+| `sef.cooldown.adminlock.history.others.21600` | `false` | Cooldown adminlock.history.others 21600 | Sets the cooldown for sef:adminlock.history.others to 21600 seconds | none |
+| `sef.cooldown.adminlock.history.others.3` | `false` | Cooldown adminlock.history.others 3 | Sets the cooldown for sef:adminlock.history.others to 3 seconds | none |
+| `sef.cooldown.adminlock.history.others.30` | `false` | Cooldown adminlock.history.others 30 | Sets the cooldown for sef:adminlock.history.others to 30 seconds | none |
+| `sef.cooldown.adminlock.history.others.300` | `false` | Cooldown adminlock.history.others 300 | Sets the cooldown for sef:adminlock.history.others to 300 seconds | none |
+| `sef.cooldown.adminlock.history.others.3600` | `false` | Cooldown adminlock.history.others 3600 | Sets the cooldown for sef:adminlock.history.others to 3600 seconds | none |
+| `sef.cooldown.adminlock.history.others.5` | `false` | Cooldown adminlock.history.others 5 | Sets the cooldown for sef:adminlock.history.others to 5 seconds | none |
+| `sef.cooldown.adminlock.history.others.60` | `false` | Cooldown adminlock.history.others 60 | Sets the cooldown for sef:adminlock.history.others to 60 seconds | none |
+| `sef.cooldown.adminlock.history.others.600` | `false` | Cooldown adminlock.history.others 600 | Sets the cooldown for sef:adminlock.history.others to 600 seconds | none |
+| `sef.cooldown.adminlock.history.others.86400` | `false` | Cooldown adminlock.history.others 86400 | Sets the cooldown for sef:adminlock.history.others to 86400 seconds | none |
+| `sef.cooldown.adminlock.history.self.0` | `false` | Cooldown adminlock.history.self 0 | Sets the cooldown for sef:adminlock.history.self to 0 seconds | none |
+| `sef.cooldown.adminlock.history.self.1` | `false` | Cooldown adminlock.history.self 1 | Sets the cooldown for sef:adminlock.history.self to 1 seconds | none |
+| `sef.cooldown.adminlock.history.self.10` | `false` | Cooldown adminlock.history.self 10 | Sets the cooldown for sef:adminlock.history.self to 10 seconds | none |
+| `sef.cooldown.adminlock.history.self.120` | `false` | Cooldown adminlock.history.self 120 | Sets the cooldown for sef:adminlock.history.self to 120 seconds | none |
+| `sef.cooldown.adminlock.history.self.15` | `false` | Cooldown adminlock.history.self 15 | Sets the cooldown for sef:adminlock.history.self to 15 seconds | none |
+| `sef.cooldown.adminlock.history.self.1800` | `false` | Cooldown adminlock.history.self 1800 | Sets the cooldown for sef:adminlock.history.self to 1800 seconds | none |
+| `sef.cooldown.adminlock.history.self.21600` | `false` | Cooldown adminlock.history.self 21600 | Sets the cooldown for sef:adminlock.history.self to 21600 seconds | none |
+| `sef.cooldown.adminlock.history.self.3` | `false` | Cooldown adminlock.history.self 3 | Sets the cooldown for sef:adminlock.history.self to 3 seconds | none |
+| `sef.cooldown.adminlock.history.self.30` | `false` | Cooldown adminlock.history.self 30 | Sets the cooldown for sef:adminlock.history.self to 30 seconds | none |
+| `sef.cooldown.adminlock.history.self.300` | `false` | Cooldown adminlock.history.self 300 | Sets the cooldown for sef:adminlock.history.self to 300 seconds | none |
+| `sef.cooldown.adminlock.history.self.3600` | `false` | Cooldown adminlock.history.self 3600 | Sets the cooldown for sef:adminlock.history.self to 3600 seconds | none |
+| `sef.cooldown.adminlock.history.self.5` | `false` | Cooldown adminlock.history.self 5 | Sets the cooldown for sef:adminlock.history.self to 5 seconds | none |
+| `sef.cooldown.adminlock.history.self.60` | `false` | Cooldown adminlock.history.self 60 | Sets the cooldown for sef:adminlock.history.self to 60 seconds | none |
+| `sef.cooldown.adminlock.history.self.600` | `false` | Cooldown adminlock.history.self 600 | Sets the cooldown for sef:adminlock.history.self to 600 seconds | none |
+| `sef.cooldown.adminlock.history.self.86400` | `false` | Cooldown adminlock.history.self 86400 | Sets the cooldown for sef:adminlock.history.self to 86400 seconds | none |
 | `sef.cooldown.adminlock.invalidate.0` | `false` | Cooldown adminlock.invalidate 0 | Sets the cooldown for sef:adminlock.invalidate to 0 seconds | none |
 | `sef.cooldown.adminlock.invalidate.1` | `false` | Cooldown adminlock.invalidate 1 | Sets the cooldown for sef:adminlock.invalidate to 1 seconds | none |
 | `sef.cooldown.adminlock.invalidate.10` | `false` | Cooldown adminlock.invalidate 10 | Sets the cooldown for sef:adminlock.invalidate to 10 seconds | none |
@@ -1528,6 +1573,36 @@ Permission entries: 12158. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.adminlock.session.open.60` | `false` | Cooldown adminlock.session.open 60 | Sets the cooldown for sef:adminlock.session.open to 60 seconds | none |
 | `sef.cooldown.adminlock.session.open.600` | `false` | Cooldown adminlock.session.open 600 | Sets the cooldown for sef:adminlock.session.open to 600 seconds | none |
 | `sef.cooldown.adminlock.session.open.86400` | `false` | Cooldown adminlock.session.open 86400 | Sets the cooldown for sef:adminlock.session.open to 86400 seconds | none |
+| `sef.cooldown.adminlock.status.others.0` | `false` | Cooldown adminlock.status.others 0 | Sets the cooldown for sef:adminlock.status.others to 0 seconds | none |
+| `sef.cooldown.adminlock.status.others.1` | `false` | Cooldown adminlock.status.others 1 | Sets the cooldown for sef:adminlock.status.others to 1 seconds | none |
+| `sef.cooldown.adminlock.status.others.10` | `false` | Cooldown adminlock.status.others 10 | Sets the cooldown for sef:adminlock.status.others to 10 seconds | none |
+| `sef.cooldown.adminlock.status.others.120` | `false` | Cooldown adminlock.status.others 120 | Sets the cooldown for sef:adminlock.status.others to 120 seconds | none |
+| `sef.cooldown.adminlock.status.others.15` | `false` | Cooldown adminlock.status.others 15 | Sets the cooldown for sef:adminlock.status.others to 15 seconds | none |
+| `sef.cooldown.adminlock.status.others.1800` | `false` | Cooldown adminlock.status.others 1800 | Sets the cooldown for sef:adminlock.status.others to 1800 seconds | none |
+| `sef.cooldown.adminlock.status.others.21600` | `false` | Cooldown adminlock.status.others 21600 | Sets the cooldown for sef:adminlock.status.others to 21600 seconds | none |
+| `sef.cooldown.adminlock.status.others.3` | `false` | Cooldown adminlock.status.others 3 | Sets the cooldown for sef:adminlock.status.others to 3 seconds | none |
+| `sef.cooldown.adminlock.status.others.30` | `false` | Cooldown adminlock.status.others 30 | Sets the cooldown for sef:adminlock.status.others to 30 seconds | none |
+| `sef.cooldown.adminlock.status.others.300` | `false` | Cooldown adminlock.status.others 300 | Sets the cooldown for sef:adminlock.status.others to 300 seconds | none |
+| `sef.cooldown.adminlock.status.others.3600` | `false` | Cooldown adminlock.status.others 3600 | Sets the cooldown for sef:adminlock.status.others to 3600 seconds | none |
+| `sef.cooldown.adminlock.status.others.5` | `false` | Cooldown adminlock.status.others 5 | Sets the cooldown for sef:adminlock.status.others to 5 seconds | none |
+| `sef.cooldown.adminlock.status.others.60` | `false` | Cooldown adminlock.status.others 60 | Sets the cooldown for sef:adminlock.status.others to 60 seconds | none |
+| `sef.cooldown.adminlock.status.others.600` | `false` | Cooldown adminlock.status.others 600 | Sets the cooldown for sef:adminlock.status.others to 600 seconds | none |
+| `sef.cooldown.adminlock.status.others.86400` | `false` | Cooldown adminlock.status.others 86400 | Sets the cooldown for sef:adminlock.status.others to 86400 seconds | none |
+| `sef.cooldown.adminlock.status.self.0` | `false` | Cooldown adminlock.status.self 0 | Sets the cooldown for sef:adminlock.status.self to 0 seconds | none |
+| `sef.cooldown.adminlock.status.self.1` | `false` | Cooldown adminlock.status.self 1 | Sets the cooldown for sef:adminlock.status.self to 1 seconds | none |
+| `sef.cooldown.adminlock.status.self.10` | `false` | Cooldown adminlock.status.self 10 | Sets the cooldown for sef:adminlock.status.self to 10 seconds | none |
+| `sef.cooldown.adminlock.status.self.120` | `false` | Cooldown adminlock.status.self 120 | Sets the cooldown for sef:adminlock.status.self to 120 seconds | none |
+| `sef.cooldown.adminlock.status.self.15` | `false` | Cooldown adminlock.status.self 15 | Sets the cooldown for sef:adminlock.status.self to 15 seconds | none |
+| `sef.cooldown.adminlock.status.self.1800` | `false` | Cooldown adminlock.status.self 1800 | Sets the cooldown for sef:adminlock.status.self to 1800 seconds | none |
+| `sef.cooldown.adminlock.status.self.21600` | `false` | Cooldown adminlock.status.self 21600 | Sets the cooldown for sef:adminlock.status.self to 21600 seconds | none |
+| `sef.cooldown.adminlock.status.self.3` | `false` | Cooldown adminlock.status.self 3 | Sets the cooldown for sef:adminlock.status.self to 3 seconds | none |
+| `sef.cooldown.adminlock.status.self.30` | `false` | Cooldown adminlock.status.self 30 | Sets the cooldown for sef:adminlock.status.self to 30 seconds | none |
+| `sef.cooldown.adminlock.status.self.300` | `false` | Cooldown adminlock.status.self 300 | Sets the cooldown for sef:adminlock.status.self to 300 seconds | none |
+| `sef.cooldown.adminlock.status.self.3600` | `false` | Cooldown adminlock.status.self 3600 | Sets the cooldown for sef:adminlock.status.self to 3600 seconds | none |
+| `sef.cooldown.adminlock.status.self.5` | `false` | Cooldown adminlock.status.self 5 | Sets the cooldown for sef:adminlock.status.self to 5 seconds | none |
+| `sef.cooldown.adminlock.status.self.60` | `false` | Cooldown adminlock.status.self 60 | Sets the cooldown for sef:adminlock.status.self to 60 seconds | none |
+| `sef.cooldown.adminlock.status.self.600` | `false` | Cooldown adminlock.status.self 600 | Sets the cooldown for sef:adminlock.status.self to 600 seconds | none |
+| `sef.cooldown.adminlock.status.self.86400` | `false` | Cooldown adminlock.status.self 86400 | Sets the cooldown for sef:adminlock.status.self to 86400 seconds | none |
 | `sef.cooldown.adminlock.unlock.0` | `false` | Cooldown adminlock.unlock 0 | Sets the cooldown for sef:adminlock.unlock to 0 seconds | none |
 | `sef.cooldown.adminlock.unlock.1` | `false` | Cooldown adminlock.unlock 1 | Sets the cooldown for sef:adminlock.unlock to 1 seconds | none |
 | `sef.cooldown.adminlock.unlock.10` | `false` | Cooldown adminlock.unlock 10 | Sets the cooldown for sef:adminlock.unlock to 10 seconds | none |

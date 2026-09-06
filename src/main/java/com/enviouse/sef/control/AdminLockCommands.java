@@ -63,7 +63,7 @@ public final class AdminLockCommands {
                         .executes(context -> statusSelf(context.getSource()))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .requires(source -> has(source, "commands.adminlock.status.others"))
-                                .executes(context -> status(
+                                .executes(context -> statusOthers(
                                         context.getSource(),
                                         EntityArgument.getPlayer(context, "player")))))
                 .then(Commands.literal("lock")
@@ -139,7 +139,7 @@ public final class AdminLockCommands {
                         .executes(context -> historySelf(context.getSource()))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .requires(source -> has(source, "commands.adminlock.history.others"))
-                                .executes(context -> history(
+                                .executes(context -> historyOthers(
                                         context.getSource(),
                                         EntityArgument.getPlayer(context, "player"),
                                         1)))));
@@ -203,7 +203,23 @@ public final class AdminLockCommands {
         if (!has(source, "commands.adminlock.status.self")) {
             return fail(source, "administrative lock status permission is required");
         }
-        return status(source, player);
+        return execute(
+                source,
+                "sef:adminlock.status.self",
+                "commands.adminlock.status.self",
+                Map.of(),
+                List.of(player.getUUID()),
+                () -> status(source, player));
+    }
+
+    private static int statusOthers(CommandSourceStack source, ServerPlayer player) {
+        return execute(
+                source,
+                "sef:adminlock.status.others",
+                "commands.adminlock.status.others",
+                Map.of("subject", player.getUUID().toString()),
+                List.of(player.getUUID()),
+                () -> status(source, player));
     }
 
     private static int status(CommandSourceStack source, ServerPlayer player) {
@@ -417,6 +433,16 @@ public final class AdminLockCommands {
     }
 
     private static int breakGlassStatus(CommandSourceStack source) {
+        return execute(
+                source,
+                "sef:adminlock.breakglass.status",
+                "commands.adminlock.breakglass.status",
+                Map.of(),
+                List.of(),
+                () -> renderBreakGlassStatus(source));
+    }
+
+    private static int renderBreakGlassStatus(CommandSourceStack source) {
         List<AdminLockService.BreakGlassSession> sessions = KernelServices.adminLocks().breakGlassSessions();
         info(source, "&ebreak glass sessions &f" + sessions.size());
         sessions.stream().limit(PAGE_SIZE).forEach(session ->
@@ -512,7 +538,23 @@ public final class AdminLockCommands {
         if (!has(source, "commands.adminlock.history.self")) {
             return fail(source, "administrative lock history permission is required");
         }
-        return history(source, player, 1);
+        return execute(
+                source,
+                "sef:adminlock.history.self",
+                "commands.adminlock.history.self",
+                Map.of(),
+                List.of(player.getUUID()),
+                () -> history(source, player, 1));
+    }
+
+    private static int historyOthers(CommandSourceStack source, ServerPlayer target, int requestedPage) {
+        return execute(
+                source,
+                "sef:adminlock.history.others",
+                "commands.adminlock.history.others",
+                Map.of("subject", target.getUUID().toString()),
+                List.of(target.getUUID()),
+                () -> history(source, target, requestedPage));
     }
 
     private static int history(CommandSourceStack source, ServerPlayer target, int requestedPage) {
