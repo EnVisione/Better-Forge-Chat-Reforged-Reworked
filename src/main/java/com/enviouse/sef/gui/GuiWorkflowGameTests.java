@@ -1481,6 +1481,123 @@ public final class GuiWorkflowGameTests {
         });
     }
 
+    @GameTest(template = "empty", timeoutTicks = 600)
+    public static void metadataOnlyPlayerInvalidInputIsRejectedWithoutMutation(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var player = helper.makeMockServerPlayerInLevel();
+        helper.runAfterDelay(20, () -> {
+            List<String> failures = new ArrayList<>();
+            Set<String> covered = new LinkedHashSet<>();
+
+            for (var definition : KernelServices.catalog().entries()) {
+                if (definition.auditClass() != AuditService.AuditClass.METADATA_ONLY
+                        || !definition.sourceTypes().contains(CommandDefinition.SourceType.PLAYER)) {
+                    continue;
+                }
+                boolean enabled = KernelServices.featureGates().decide(
+                        definition.featureId(),
+                        FeatureGateService.Context.server(definition.id())).enabled();
+                if (!enabled) {
+                    continue;
+                }
+                GuiWorkflowCompiler.WorkflowDefinition workflow;
+                try {
+                    workflow = GuiWorkflowCompiler.compile(definition, dispatcher, player.createCommandSourceStack());
+                } catch (IllegalArgumentException exception) {
+                    continue;
+                }
+                String invalidCommand = null;
+                for (var variant : workflow.variants()) {
+                    if (!isCanonicalVariant(definition, variant)) {
+                        continue;
+                    }
+                    if (variant.fields().isEmpty()) {
+                        String validCommand = render(variant);
+                        if (validCommand.isBlank()) {
+                            continue;
+                        }
+                        for (String suffix : List.of(
+                                " __sef_invalid__",
+                                " __sef_invalid__ __sef_invalid__",
+                                " \"unterminated")) {
+                            String candidate = validCommand + suffix;
+                            ParseResults<CommandSourceStack> parsed = dispatcher.parse(
+                                    candidate,
+                                    player.createCommandSourceStack());
+                            if (!parsed.getExceptions().isEmpty() || parsed.getReader().canRead()) {
+                                invalidCommand = candidate;
+                                break;
+                            }
+                            try {
+                                int result = dispatcher.execute(candidate, player.createCommandSourceStack());
+                                if (result <= 0) {
+                                    invalidCommand = candidate;
+                                    break;
+                                }
+                                failures.add(definition.id() + ", invalid player input executed, " + candidate);
+                            } catch (Exception exception) {
+                                invalidCommand = candidate;
+                                break;
+                            }
+                        }
+                    } else {
+                        for (var field : variant.fields()) {
+                            for (String invalidValue : invalidValues(field)) {
+                                String candidate = renderWithFieldOverride(variant, field.id(), invalidValue);
+                                ParseResults<CommandSourceStack> parsed = dispatcher.parse(
+                                        candidate,
+                                        player.createCommandSourceStack());
+                                if (!parsed.getExceptions().isEmpty() || parsed.getReader().canRead()) {
+                                    invalidCommand = candidate;
+                                    break;
+                                }
+                                try {
+                                    int result = dispatcher.execute(candidate, player.createCommandSourceStack());
+                                    if (result <= 0) {
+                                        invalidCommand = candidate;
+                                        break;
+                                    }
+                                    failures.add(definition.id() + ", invalid player input executed, " + candidate);
+                                } catch (Exception exception) {
+                                    invalidCommand = candidate;
+                                    break;
+                                }
+                            }
+                            if (invalidCommand != null) {
+                                break;
+                            }
+                        }
+                    }
+                    if (invalidCommand != null) {
+                        break;
+                    }
+                }
+                if (invalidCommand != null && covered.add(definition.id())) {
+                    CommandEffectEvidenceWriter.record(
+                            definition.id(),
+                            "metadataOnlyPlayerInvalidInputIsRejectedWithoutMutation",
+                            "failure",
+                            false,
+                            true,
+                            "invalid_input");
+                }
+            }
+
+            failures.forEach(failure ->
+                    ServerEssentialsForge.LOGGER.error("[SEF] Metadata-only player invalid input, {}", failure));
+            helper.assertTrue(
+                    failures.isEmpty(),
+                    "metadata-only player invalid input failed, "
+                            + String.join("; ", failures.stream().limit(8).toList()));
+            helper.assertTrue(!covered.isEmpty(), "no metadata-only player invalid input routes were covered");
+            ServerEssentialsForge.LOGGER.info(
+                    "[SEF] Metadata-only player invalid input covered {} action routes",
+                    covered.size());
+            helper.succeed();
+        });
+    }
+
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void everyPlayerFacingActionCompilesToATypedWorkflow(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
