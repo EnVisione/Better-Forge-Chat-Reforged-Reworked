@@ -18,14 +18,18 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @GameTestHolder("sef")
 @PrefixGameTestTemplate(false)
 public final class ServerControlGameTests {
+    private static final List<EffectEvidence> EFFECT_EVIDENCE = new ArrayList<>();
+
     private ServerControlGameTests() {
     }
 
@@ -132,6 +136,13 @@ public final class ServerControlGameTests {
             helper.assertTrue(
                     !helper.getLevel().getGameRules().getBoolean(GameRules.RULE_DAYLIGHT),
                     "world policy did not change the selected gamerule");
+            writeEffectEvidence(
+                    "sef:control.world_policy.manage",
+                    "worldPolicyAppliesValidatedGamerules",
+                    "success",
+                    true,
+                    true,
+                    "none");
         } finally {
             helper.getLevel().getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(previous, null);
         }
@@ -155,6 +166,13 @@ public final class ServerControlGameTests {
             helper.assertTrue(
                     helper.getLevel().getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE) == 75,
                     "sleep vote threshold did not change the gamerule");
+            writeEffectEvidence(
+                    "sef:control.sleep_vote.manage",
+                    "sleepVoteAppliesValidatedPercentage",
+                    "success",
+                    true,
+                    true,
+                    "none");
         } finally {
             helper.getLevel().getGameRules().getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE).set(previous, null);
         }
@@ -176,6 +194,13 @@ public final class ServerControlGameTests {
         helper.assertTrue(
                 helper.getLevel().getGameRules().getBoolean(GameRules.RULE_DAYLIGHT) == previous,
                 "invalid gamerule batch partially mutated the world");
+        writeEffectEvidence(
+                "sef:control.world_policy.manage",
+                "worldPolicyRejectsTheWholeBatchBeforeMutation",
+                "failure",
+                false,
+                true,
+                "invalid_input");
         helper.succeed();
     }
 
@@ -200,6 +225,13 @@ public final class ServerControlGameTests {
             helper.assertTrue(border.getCenterX() == 32.5D, "world border center x did not change");
             helper.assertTrue(border.getCenterZ() == -48.5D, "world border center z did not change");
             helper.assertTrue(border.getSize() == 512.0D, "world border size did not change");
+            writeEffectEvidence(
+                    "sef:control.world_border.manage",
+                    "worldBorderAppliesBoundedCenterAndSize",
+                    "success",
+                    true,
+                    true,
+                    "none");
         } finally {
             border.setCenter(previousX, previousZ);
             border.setSize(previousSize);
@@ -230,6 +262,13 @@ public final class ServerControlGameTests {
         helper.assertTrue(result.successful(), result.detail());
         helper.assertTrue(item.isRemoved(), "cleanup did not remove the selected item entity");
         helper.assertTrue(!player.isRemoved(), "cleanup removed a player");
+        writeEffectEvidence(
+                "sef:control.cleanup.manage",
+                "cleanupRemovesSelectedItemsWithoutRemovingPlayers",
+                "success",
+                true,
+                true,
+                "none");
         helper.succeed();
     }
 
@@ -355,6 +394,79 @@ public final class ServerControlGameTests {
         record.addProperty("rowCount", rows.size());
         record.add("rows", rows);
         Files.writeString(output, record.toString() + System.lineSeparator(), StandardCharsets.UTF_8);
+    }
+
+    private static synchronized void writeEffectEvidence(
+            String actionId,
+            String testName,
+            String result,
+            boolean effectObserved,
+            boolean unchangedOnFailure,
+            String failureClass
+    ) {
+        String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
+        if (evidenceRoot.isEmpty()) {
+            return;
+        }
+        String candidateCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
+        String candidateSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
+        if (!candidateCommit.matches("[0-9a-f]{40}") || !candidateSha256.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("effect evidence candidate identity properties are required");
+        }
+        EFFECT_EVIDENCE.removeIf(row -> row.actionId().equals(actionId) && row.testName().equals(testName));
+        EFFECT_EVIDENCE.add(new EffectEvidence(
+                actionId,
+                testName,
+                result,
+                effectObserved,
+                unchangedOnFailure,
+                failureClass));
+        Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
+        if (Files.isSymbolicLink(root)) {
+            throw new IllegalArgumentException("effect evidence root is a symlink");
+        }
+        try {
+            Files.createDirectories(root);
+            Path output = root.resolve("server-control-effect-runtime.json");
+            if (Files.isSymbolicLink(output)) {
+                throw new IllegalArgumentException("effect evidence target is a symlink");
+            }
+            JsonArray rows = new JsonArray();
+            EFFECT_EVIDENCE.stream()
+                    .sorted(Comparator.comparing(EffectEvidence::actionId).thenComparing(EffectEvidence::testName))
+                    .forEach(row -> {
+                        JsonObject value = new JsonObject();
+                        value.addProperty("actionId", row.actionId());
+                        value.addProperty("testName", row.testName());
+                        value.addProperty("result", row.result());
+                        value.addProperty("effectObserved", row.effectObserved());
+                        value.addProperty("unchangedOnFailure", row.unchangedOnFailure());
+                        value.addProperty("failureClass", row.failureClass());
+                        value.addProperty("sourceType", "dedicated_server_gametest");
+                        value.addProperty("runtime", "canonical_linux");
+                        rows.add(value);
+                    });
+            JsonObject record = new JsonObject();
+            record.addProperty("schemaVersion", 1);
+            record.addProperty("candidateCommit", candidateCommit);
+            record.addProperty("candidateSha256", candidateSha256);
+            record.addProperty("source", "ServerControlGameTests");
+            record.addProperty("rowCount", rows.size());
+            record.add("rows", rows);
+            Files.writeString(output, record.toString() + System.lineSeparator(), StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            throw new IllegalStateException("effect evidence could not be written", exception);
+        }
+    }
+
+    private record EffectEvidence(
+            String actionId,
+            String testName,
+            String result,
+            boolean effectObserved,
+            boolean unchangedOnFailure,
+            String failureClass
+    ) {
     }
 
     private static void deleteTree(Path root) {

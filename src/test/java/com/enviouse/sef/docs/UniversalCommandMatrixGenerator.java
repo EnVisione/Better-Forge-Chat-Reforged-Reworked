@@ -53,6 +53,7 @@ public final class UniversalCommandMatrixGenerator {
     public static JsonObject generate() {
         JsonObject inventory = CommandInventoryGenerator.generate();
         RuntimeEvidence runtimeEvidence = RuntimeEvidence.load();
+        EffectEvidence effectEvidence = EffectEvidence.load();
         UnavailableEvidence unavailableEvidence = UnavailableEvidence.load();
         JsonArray sourceRows = inventory.getAsJsonArray("rows");
         Map<String, JsonObject> actions = new LinkedHashMap<>();
@@ -73,7 +74,8 @@ public final class UniversalCommandMatrixGenerator {
             rows.add(commandRow(
                     action,
                     routes.getOrDefault(action.get("semanticKey").getAsString(), List.of()),
-                    runtimeEvidence));
+                    runtimeEvidence,
+                    effectEvidence));
         }
         for (JsonElement element : sourceRows) {
             JsonObject row = element.getAsJsonObject();
@@ -257,7 +259,8 @@ public final class UniversalCommandMatrixGenerator {
     private static JsonObject commandRow(
             JsonObject action,
             List<String> routeList,
-            RuntimeEvidence runtimeEvidence
+            RuntimeEvidence runtimeEvidence,
+            EffectEvidence effectEvidence
     ) {
         String actionId = action.get("semanticKey").getAsString();
         JsonObject row = baseRow("command-matrix", actionId, "static", "incomplete");
@@ -277,7 +280,7 @@ public final class UniversalCommandMatrixGenerator {
         action.getAsJsonArray("convenienceRoots").forEach(orderedRoutes::add);
         row.add("orderedRoutes", orderedRoutes);
         row.add("auditJoin", auditJoin(action));
-        row.add("dimensions", commandDimensions(action, runtimeEvidence));
+        row.add("dimensions", commandDimensions(action, runtimeEvidence, effectEvidence));
         row.addProperty("status", "open");
         return row;
     }
@@ -294,7 +297,11 @@ public final class UniversalCommandMatrixGenerator {
         return row;
     }
 
-    private static JsonObject commandDimensions(JsonObject action, RuntimeEvidence runtimeEvidence) {
+    private static JsonObject commandDimensions(
+            JsonObject action,
+            RuntimeEvidence runtimeEvidence,
+            EffectEvidence effectEvidence
+    ) {
         JsonObject dimensions = new JsonObject();
         add(dimensions, "registration", "pass", "live catalog and dispatcher route ownership", "task-025-inventory/command-inventory-live.json");
         add(dimensions, "discovery", "pass", "catalog-wide live route resolution GameTest", "task-024-remediation-gametest.log");
@@ -326,7 +333,100 @@ public final class UniversalCommandMatrixGenerator {
             add(dimensions, "redaction", "pass", "catalog-wide console execution emitted metadata-only redaction without raw command parameters", evidence);
             add(dimensions, "linux_shared_runtime", "pass", "catalog-wide console route executed on the canonical Linux runtime", evidence);
         }
+        if (effectEvidence.successful(action.get("semanticKey").getAsString())) {
+            add(
+                    dimensions,
+                    "effect",
+                    "pass",
+                    "candidate-bound dedicated-server GameTest observed the action-specific domain effect",
+                    "server-control-effect-runtime.json");
+            add(
+                    dimensions,
+                    "linux_shared_runtime",
+                    "pass",
+                    "candidate-bound action-specific effect executed on canonical Linux",
+                    "server-control-effect-runtime.json");
+        }
+        if (effectEvidence.hasFailure(action.get("semanticKey").getAsString())) {
+            add(
+                    dimensions,
+                    "failure",
+                    "partial",
+                    "one candidate-bound action-specific failure class preserved state; distinct failure classes remain open",
+                    "server-control-effect-runtime.json");
+        }
         return dimensions;
+    }
+
+    private record EffectEvidence(Map<String, List<JsonObject>> rows) {
+        private static EffectEvidence load() {
+            String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
+            String expectedCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
+            String expectedSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
+            if (evidenceRoot.isEmpty() || expectedCommit.isEmpty() || expectedSha256.isEmpty()) {
+                return new EffectEvidence(Map.of());
+            }
+            Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
+            Path file = root.resolve("server-control-effect-runtime.json");
+            if (!Files.exists(file)) {
+                return new EffectEvidence(Map.of());
+            }
+            try {
+                if (!Files.isRegularFile(file) || Files.isSymbolicLink(file)) {
+                    throw new IllegalArgumentException("effect runtime evidence target is invalid");
+                }
+                JsonObject record = JsonParser.parseString(
+                        Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+                if (!record.has("schemaVersion") || record.get("schemaVersion").getAsInt() != 1
+                        || !record.has("candidateCommit") || !record.has("candidateSha256")
+                        || !expectedCommit.equals(record.get("candidateCommit").getAsString())
+                        || !expectedSha256.equals(record.get("candidateSha256").getAsString())
+                        || !expectedCommit.matches("[0-9a-f]{40}")
+                        || !expectedSha256.matches("[0-9a-f]{64}")
+                        || !record.has("rows") || !record.get("rows").isJsonArray()
+                        || !record.has("rowCount")
+                        || record.get("rowCount").getAsInt() != record.getAsJsonArray("rows").size()) {
+                    throw new IllegalArgumentException("effect runtime evidence identity or shape is invalid");
+                }
+                Map<String, List<JsonObject>> byAction = new LinkedHashMap<>();
+                Set<String> rowKeys = new java.util.HashSet<>();
+                for (JsonElement element : record.getAsJsonArray("rows")) {
+                    JsonObject row = element.getAsJsonObject();
+                    String actionId = row.get("actionId").getAsString();
+                    String testName = row.get("testName").getAsString();
+                    String result = row.get("result").getAsString();
+                    if (!actionId.matches("sef:[a-z0-9_.]+")
+                            || testName.isBlank()
+                            || !Set.of("success", "failure").contains(result)
+                            || !row.has("effectObserved") || !row.get("effectObserved").isJsonPrimitive()
+                            || !row.getAsJsonPrimitive("effectObserved").isBoolean()
+                            || !row.has("unchangedOnFailure") || !row.get("unchangedOnFailure").isJsonPrimitive()
+                            || !row.getAsJsonPrimitive("unchangedOnFailure").isBoolean()
+                            || !row.has("failureClass") || !row.get("failureClass").isJsonPrimitive()
+                            || !row.has("sourceType") || !row.get("sourceType").getAsString().equals("dedicated_server_gametest")
+                            || !row.has("runtime") || !row.get("runtime").getAsString().equals("canonical_linux")
+                            || !rowKeys.add(actionId + "\u0000" + testName)) {
+                        throw new IllegalArgumentException("effect runtime evidence row is invalid");
+                    }
+                    byAction.computeIfAbsent(actionId, ignored -> new ArrayList<>()).add(row);
+                }
+                return new EffectEvidence(byAction);
+            } catch (RuntimeException | IOException exception) {
+                throw new IllegalStateException("effect runtime evidence is invalid", exception);
+            }
+        }
+
+        private boolean successful(String actionId) {
+            return rows.getOrDefault(actionId, List.of()).stream()
+                    .anyMatch(row -> "success".equals(row.get("result").getAsString())
+                            && row.get("effectObserved").getAsBoolean());
+        }
+
+        private boolean hasFailure(String actionId) {
+            return rows.getOrDefault(actionId, List.of()).stream()
+                    .anyMatch(row -> "failure".equals(row.get("result").getAsString())
+                            && row.get("unchangedOnFailure").getAsBoolean());
+        }
     }
 
     private record RuntimeEvidence(
