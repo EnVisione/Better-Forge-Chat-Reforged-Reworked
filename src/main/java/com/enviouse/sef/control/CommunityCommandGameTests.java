@@ -28,11 +28,11 @@ public final class CommunityCommandGameTests {
             int addResult = executeWithPermissions(
                     helper,
                     actor,
-                    "blocks add " + target.getGameProfile().getName() + " messages",
+                    "blocks add @a[uuid=" + target.getUUID() + "] messages",
                     "sef:control.interaction_blocks.set",
                     Set.of(
                             "sef.commands.control.interaction_blocks.view",
-                            "sef.commands.control.interaction_blocks.set"));
+                            "sef.commands.control.interaction_blocks.create"));
             helper.assertTrue(addResult > 0, "interaction block add did not report success");
             helper.assertTrue(
                     KernelServices.communityState()
@@ -43,11 +43,11 @@ public final class CommunityCommandGameTests {
             int removeResult = executeWithPermissions(
                     helper,
                     actor,
-                    "blocks remove " + target.getGameProfile().getName() + " messages",
+                    "blocks remove @a[uuid=" + target.getUUID() + "] messages",
                     "sef:control.interaction_blocks.set",
                     Set.of(
                             "sef.commands.control.interaction_blocks.view",
-                            "sef.commands.control.interaction_blocks.set"));
+                            "sef.commands.control.interaction_blocks.create"));
             helper.assertTrue(removeResult > 0, "interaction block remove did not report success");
             helper.assertTrue(
                     KernelServices.communityState()
@@ -74,11 +74,11 @@ public final class CommunityCommandGameTests {
         int result = executeWithPermissions(
                 helper,
                 actor,
-                "blocks add " + actor.getGameProfile().getName() + " messages",
+                "blocks add @a[uuid=" + actor.getUUID() + "] messages",
                 "sef:control.interaction_blocks.set",
                 Set.of(
                         "sef.commands.control.interaction_blocks.view",
-                        "sef.commands.control.interaction_blocks.set"));
+                        "sef.commands.control.interaction_blocks.create"));
 
         helper.assertTrue(result <= 0, "self interaction block was accepted");
         helper.assertTrue(
@@ -107,7 +107,7 @@ public final class CommunityCommandGameTests {
                     "sef:control.waypoints.set",
                     Set.of(
                             "sef.commands.control.waypoints.view",
-                            "sef.commands.control.waypoints.set"));
+                            "sef.commands.control.waypoints.create"));
             helper.assertTrue(setResult > 0, "waypoint set did not report success");
             helper.assertTrue(
                     KernelServices.communityState().find("waypoint", actor.getUUID(), name).isPresent(),
@@ -127,7 +127,7 @@ public final class CommunityCommandGameTests {
                     "sef:control.waypoints.remove",
                     Set.of(
                             "sef.commands.control.waypoints.view",
-                            "sef.commands.control.waypoints.remove"));
+                            "sef.commands.control.waypoints.create"));
             helper.assertTrue(removeResult > 0, "waypoint remove did not report success");
             helper.assertTrue(
                     KernelServices.communityState().find("waypoint", actor.getUUID(), name).isEmpty(),
@@ -147,7 +147,7 @@ public final class CommunityCommandGameTests {
                     "sef:control.waypoints.remove",
                     Set.of(
                             "sef.commands.control.waypoints.view",
-                            "sef.commands.control.waypoints.remove"));
+                            "sef.commands.control.waypoints.create"));
             helper.assertTrue(missingResult <= 0, "missing waypoint removal was accepted");
             CommandEffectEvidenceWriter.record(
                     "sef:control.waypoints.remove",
