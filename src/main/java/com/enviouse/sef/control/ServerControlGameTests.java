@@ -37,6 +37,7 @@ public final class ServerControlGameTests {
             ServerControlExecutionService executions = new ServerControlExecutionService(fixture.repository());
 
             MinecraftServerControlRuntime.registerHandlers(executions);
+            List<String> expectedUnavailable = expectedUnavailableFamilies();
 
             var diagnostic = executions.diagnostic();
             helper.assertTrue(
@@ -45,9 +46,14 @@ public final class ServerControlGameTests {
                             == ServerControlSchemaRegistry.schemas().size(),
                     "not every server control schema has a runtime classification");
             helper.assertTrue(
-                    diagnostic.unavailableIntegrations().equals(
-                            MinecraftServerControlRuntime.unavailableRuntimeFeatures()),
+                    MinecraftServerControlRuntime.unavailableRuntimeFeatures().equals(expectedUnavailable),
+                    "server control runtime unavailable families drifted from the audit contract");
+            helper.assertTrue(
+                    diagnostic.unavailableIntegrations().equals(expectedUnavailable),
                     "server control unavailability diagnostics are inaccurate");
+            helper.assertTrue(
+                    diagnostic.registeredHandlers().stream().noneMatch(expectedUnavailable::contains),
+                    "an unavailable server control family has a registered handler");
             helper.succeed();
         }
     }
@@ -63,7 +69,7 @@ public final class ServerControlGameTests {
             MinecraftServerControlRuntime.registerHandlers(executions);
             UUID actor = UUID.randomUUID();
 
-            for (String feature : MinecraftServerControlRuntime.unavailableRuntimeFeatures()) {
+            for (String feature : expectedUnavailableFamilies()) {
                 var schema = ServerControlSchemaRegistry.require(feature);
                 var created = repository.create(
                         feature,
@@ -78,6 +84,7 @@ public final class ServerControlGameTests {
                 var record = created.value();
                 var preview = executions.preview(record.id(), record.revision());
                 helper.assertTrue(!preview.ready(), feature + " preview incorrectly reported ready");
+                helper.assertTrue(!executions.registered(feature), feature + " unexpectedly has a registered handler");
                 helper.assertTrue(
                         preview.detail().toLowerCase(java.util.Locale.ROOT).contains("unavailable"),
                         feature + " preview did not report unavailability: " + preview.detail());
@@ -102,9 +109,19 @@ public final class ServerControlGameTests {
                 helper.assertTrue(
                         result.reason() == ActionResult.ReasonCode.PROVIDER_ERROR,
                         feature + " returned the wrong unavailable reason: " + result.reason());
+                var transition = repository.transition(
+                        record.id(),
+                        actor,
+                        ServerControlRepository.RecordState.ACTIVE,
+                        record.revision(),
+                        "unavailable negative contract");
+                helper.assertTrue(!transition.successful(), feature + " generic state transition unexpectedly succeeded");
+                helper.assertTrue(
+                        transition.reason() == ActionResult.ReasonCode.PROVIDER_ERROR,
+                        feature + " generic state transition returned the wrong unavailable reason: " + transition.reason());
                 helper.assertTrue(
                         repository.find(record.id()).orElseThrow().equals(record),
-                        feature + " execution changed the unavailable record");
+                        feature + " unavailable routes changed the record");
                 helper.assertTrue(
                         repository.executions(null).isEmpty(),
                         feature + " unavailable execution created a durable operation");
@@ -116,6 +133,26 @@ public final class ServerControlGameTests {
         } finally {
             deleteTree(path);
         }
+    }
+
+    private static List<String> expectedUnavailableFamilies() {
+        return List.of(
+                "admin_journal",
+                "afk_zones",
+                "approvals",
+                "capability_leases",
+                "chat_channels",
+                "display_ownership",
+                "display_profiles",
+                "player_warp_review",
+                "portal_policy",
+                "resource_governor",
+                "resource_worlds",
+                "rollouts",
+                "server_presentation",
+                "spawn_ecology",
+                "staff_duty",
+                "waypoints").stream().sorted().toList();
     }
 
     @GameTest(template = "empty")
@@ -373,12 +410,15 @@ public final class ServerControlGameTests {
             throw new IllegalArgumentException("unavailable runtime evidence target is a symlink");
         }
         JsonArray rows = new JsonArray();
-        for (String feature : MinecraftServerControlRuntime.unavailableRuntimeFeatures()) {
+        for (String feature : expectedUnavailableFamilies()) {
             JsonObject row = new JsonObject();
             row.addProperty("familyId", feature);
             row.addProperty("result", "pass");
+            row.addProperty("handlerAbsent", true);
+            row.addProperty("diagnosticNamed", true);
             row.addProperty("previewDenied", true);
             row.addProperty("executionDenied", true);
+            row.addProperty("genericTransitionDenied", true);
             row.addProperty("unchangedRecord", true);
             row.addProperty("noDurableOperation", true);
             row.addProperty("reason", "provider_error");
