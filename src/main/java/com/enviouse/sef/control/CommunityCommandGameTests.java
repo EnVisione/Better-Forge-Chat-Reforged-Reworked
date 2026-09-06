@@ -27,7 +27,7 @@ public final class CommunityCommandGameTests {
                 int addResult = executeWithPermissions(
                         helper,
                         actor,
-                        "blocks add @p[distance=90..110] messages");
+                        "blocks add " + selectorFor(target) + " messages");
                 helper.assertTrue(addResult > 0, "interaction block add did not report success");
                 helper.assertTrue(
                         KernelServices.communityState()
@@ -38,7 +38,7 @@ public final class CommunityCommandGameTests {
                 int removeResult = executeWithPermissions(
                         helper,
                         actor,
-                        "blocks remove @p[distance=90..110] messages");
+                        "blocks remove " + selectorFor(target) + " messages");
                 helper.assertTrue(removeResult > 0, "interaction block remove did not report success");
                 helper.assertTrue(
                         KernelServices.communityState()
