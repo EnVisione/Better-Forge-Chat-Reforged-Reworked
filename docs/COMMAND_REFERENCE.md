@@ -325,7 +325,7 @@ Catalog entries: 713. Shortcut entries: 315. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `canonical_only`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:adminlock.history.self`
@@ -509,7 +509,7 @@ Catalog entries: 713. Shortcut entries: 315. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `canonical_only`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:adminlock.status.self`
