@@ -30,8 +30,11 @@ public final class AuditRuntimeProbe {
         boolean identityTraceVerified = false;
         boolean objectSwapVerified = false;
         boolean failurePreservationVerified = false;
+        boolean closedProviderRejected = false;
         boolean rotationVerified = false;
         boolean restartVerified = false;
+        boolean queueFailureVerified = false;
+        boolean initializationFailureVerified = false;
         boolean writerStopped = false;
         List<String> identityTrace = new ArrayList<>();
         try {
@@ -73,6 +76,7 @@ public final class AuditRuntimeProbe {
                 } else {
                     identityTrace.add("case=object_swap,rejected=true");
                 }
+                closedProviderRejected = closedProviderCheck(auditDirectory, activeFile);
             }
 
             Path serviceRoot = fixture.resolve("service-root");
@@ -94,6 +98,32 @@ public final class AuditRuntimeProbe {
                 }
             } finally {
                 SecurityAuditService.shutdown();
+            }
+            queueFailureVerified = !SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "probe",
+                    "after-shutdown",
+                    "probe",
+                    "",
+                    "runtime-probe",
+                    "success",
+                    "success"));
+
+            Path blockedRoot = fixture.resolve("blocked-root");
+            Files.writeString(blockedRoot, "not-a-directory\n", StandardCharsets.UTF_8);
+            try {
+                SecurityAuditService.start(blockedRoot, 1, 1);
+                initializationFailureVerified = !SecurityAuditService.health().running()
+                        && !SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                                "probe",
+                                "initialization-failure",
+                                "probe",
+                                "",
+                                "runtime-probe",
+                                "success",
+                                "success"));
+            } finally {
+                SecurityAuditService.shutdown();
+                Files.deleteIfExists(blockedRoot);
             }
 
             Path serviceAudit = serviceRoot.resolve("audit");
@@ -140,8 +170,11 @@ public final class AuditRuntimeProbe {
                     "opened_object_identity_trace_verified=" + identityTraceVerified,
                     "object_swap_control_verified=" + objectSwapVerified,
                     "failure_preservation_verified=" + failurePreservationVerified,
+                    "closed_provider_rejected=" + closedProviderRejected,
                     "rotation_verified=" + rotationVerified,
                     "restart_verified=" + restartVerified,
+                    "queue_failure_verified=" + queueFailureVerified,
+                    "initialization_failure_verified=" + initializationFailureVerified,
                     "writer_stopped=" + writerStopped,
                     "manifest_complete=true");
             Files.write(output.resolve("native-writer-runtime-manifest.txt"), manifest, StandardCharsets.UTF_8);
@@ -151,7 +184,8 @@ public final class AuditRuntimeProbe {
                     StandardCharsets.UTF_8);
             if (!(appendVerified && flushVerified && identityValidationVerified && objectSwapVerified
                     && identityTraceVerified && failurePreservationVerified
-                    && rotationVerified && restartVerified && writerStopped)) {
+                    && closedProviderRejected && rotationVerified && restartVerified
+                    && queueFailureVerified && initializationFailureVerified && writerStopped)) {
                 throw new IllegalStateException("native audit runtime probe did not satisfy its contract");
             }
         } finally {
@@ -212,6 +246,17 @@ public final class AuditRuntimeProbe {
         } catch (IOException expected) {
             return Arrays.equals(before, Files.readAllBytes(activeFile))
                     && Files.isDirectory(rejectedDirectory);
+        }
+    }
+
+    private static boolean closedProviderCheck(Path auditDirectory, Path activeFile) throws IOException {
+        NativeAuditFileProvider provider = NativeAuditFileProvider.open(auditDirectory);
+        provider.close();
+        try {
+            provider.append(activeFile, "closed-provider\n".getBytes(StandardCharsets.UTF_8));
+            return false;
+        } catch (IOException expected) {
+            return true;
         }
     }
 
