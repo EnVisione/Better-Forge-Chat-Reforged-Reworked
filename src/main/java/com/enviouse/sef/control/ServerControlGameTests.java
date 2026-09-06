@@ -31,22 +31,23 @@ public final class ServerControlGameTests {
 
     @GameTest(template = "empty")
     public static void everyServerControlSchemaIsTruthfullyClassified(GameTestHelper helper) {
-        ServerControlRepository repository = repository();
-        ServerControlExecutionService executions = new ServerControlExecutionService(repository);
+        try (RepositoryFixture fixture = repository()) {
+            ServerControlExecutionService executions = new ServerControlExecutionService(fixture.repository());
 
-        MinecraftServerControlRuntime.registerHandlers(executions);
+            MinecraftServerControlRuntime.registerHandlers(executions);
 
-        var diagnostic = executions.diagnostic();
-        helper.assertTrue(
-                diagnostic.registeredHandlers().size()
-                        + diagnostic.unavailableIntegrations().size()
-                        == ServerControlSchemaRegistry.schemas().size(),
-                "not every server control schema has a runtime classification");
-        helper.assertTrue(
-                diagnostic.unavailableIntegrations().equals(
-                        MinecraftServerControlRuntime.unavailableRuntimeFeatures()),
-                "server control unavailability diagnostics are inaccurate");
-        helper.succeed();
+            var diagnostic = executions.diagnostic();
+            helper.assertTrue(
+                    diagnostic.registeredHandlers().size()
+                            + diagnostic.unavailableIntegrations().size()
+                            == ServerControlSchemaRegistry.schemas().size(),
+                    "not every server control schema has a runtime classification");
+            helper.assertTrue(
+                    diagnostic.unavailableIntegrations().equals(
+                            MinecraftServerControlRuntime.unavailableRuntimeFeatures()),
+                    "server control unavailability diagnostics are inaccurate");
+            helper.succeed();
+        }
     }
 
     @GameTest(template = "empty")
@@ -237,48 +238,57 @@ public final class ServerControlGameTests {
             String feature,
             Map<String, String> metadata
     ) {
-        ServerControlRepository repository = repository();
-        ServerControlExecutionService executions = new ServerControlExecutionService(repository);
-        MinecraftServerControlRuntime.registerHandlers(executions);
-        UUID actor = UUID.randomUUID();
-        var created = repository.create(
-                feature,
-                actor,
-                null,
-                feature,
-                "game test",
-                null,
-                metadata);
-        if (!created.successful()) {
-            return ActionResult.failure(created.reason(), created.detail());
-        }
-        MinecraftServer server = helper.getLevel().getServer();
-        return executions.execute(
-                created.value().id(),
-                actor,
-                created.value().revision(),
-                true,
-                new ServerControlExecutionService.ExecutionContext() {
-                    @Override
-                    public Object server() {
-                        return server;
-                    }
+        try (RepositoryFixture fixture = repository()) {
+            ServerControlRepository repository = fixture.repository();
+            ServerControlExecutionService executions = new ServerControlExecutionService(repository);
+            MinecraftServerControlRuntime.registerHandlers(executions);
+            UUID actor = UUID.randomUUID();
+            var created = repository.create(
+                    feature,
+                    actor,
+                    null,
+                    feature,
+                    "game test",
+                    null,
+                    metadata);
+            if (!created.successful()) {
+                return ActionResult.failure(created.reason(), created.detail());
+            }
+            MinecraftServer server = helper.getLevel().getServer();
+            return executions.execute(
+                    created.value().id(),
+                    actor,
+                    created.value().revision(),
+                    true,
+                    new ServerControlExecutionService.ExecutionContext() {
+                        @Override
+                        public Object server() {
+                            return server;
+                        }
 
-                    @Override
-                    public Object source() {
-                        return server.createCommandSourceStack();
-                    }
-                });
+                        @Override
+                        public Object source() {
+                            return server.createCommandSourceStack();
+                        }
+                    });
+        }
     }
 
-    private static ServerControlRepository repository() {
+    private static RepositoryFixture repository() {
         try {
             Path path = Files.createTempDirectory("sef-control-gametest");
             ServerControlRepository repository = new ServerControlRepository();
             repository.load(path);
-            return repository;
+            return new RepositoryFixture(repository, path);
         } catch (IOException exception) {
             throw new IllegalStateException("server control game test storage is unavailable", exception);
+        }
+    }
+
+    private record RepositoryFixture(ServerControlRepository repository, Path path) implements AutoCloseable {
+        @Override
+        public void close() {
+            deleteTree(path);
         }
     }
 
