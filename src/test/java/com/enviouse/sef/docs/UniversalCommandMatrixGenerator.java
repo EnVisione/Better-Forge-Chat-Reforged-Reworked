@@ -280,9 +280,21 @@ public final class UniversalCommandMatrixGenerator {
         action.getAsJsonArray("convenienceRoots").forEach(orderedRoutes::add);
         row.add("orderedRoutes", orderedRoutes);
         row.add("auditJoin", auditJoin(action));
-        row.add("dimensions", commandDimensions(action, runtimeEvidence, effectEvidence));
-        row.addProperty("status", "open");
+        JsonObject dimensions = commandDimensions(action, runtimeEvidence, effectEvidence);
+        row.add("dimensions", dimensions);
+        row.addProperty("status", rowStatus(dimensions));
         return row;
+    }
+
+    private static String rowStatus(JsonObject dimensions) {
+        boolean open = false;
+        boolean partial = false;
+        for (String dimension : DIMENSIONS) {
+            String status = dimensions.getAsJsonObject(dimension).get("status").getAsString();
+            open |= status.equals("open");
+            partial |= status.equals("partial");
+        }
+        return open ? "open" : partial ? "partial" : "pass";
     }
 
     private static JsonObject unavailableRow(JsonObject source, UnavailableEvidence evidence) {
