@@ -1264,6 +1264,95 @@ public final class GuiWorkflowGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 600)
+    public static void metadataOnlyConsoleArgumentInvalidInputIsRejectedWithoutMutation(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        List<String> failures = new ArrayList<>();
+        Set<String> covered = new LinkedHashSet<>();
+
+        for (var definition : KernelServices.catalog().entries()) {
+            if (definition.auditClass() != AuditService.AuditClass.METADATA_ONLY
+                    || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            GuiWorkflowCompiler.WorkflowDefinition workflow;
+            try {
+                workflow = GuiWorkflowCompiler.compile(definition, dispatcher, source);
+            } catch (IllegalArgumentException exception) {
+                continue;
+            }
+            for (var variant : workflow.variants()) {
+                if (variant.fields().isEmpty() || !isCanonicalVariant(definition, variant)) {
+                    continue;
+                }
+                String validCommand = render(variant);
+                if (validCommand.isBlank() || !routeOwnedByDefinition(definition, validCommand)) {
+                    continue;
+                }
+                String invalidCommand = null;
+                for (var field : variant.fields()) {
+                    for (String invalidValue : invalidValues(field)) {
+                        String candidate = renderWithFieldOverride(variant, field.id(), invalidValue);
+                        ParseResults<CommandSourceStack> parsed = dispatcher.parse(candidate, source);
+                        if (!parsed.getExceptions().isEmpty() || parsed.getReader().canRead()) {
+                            invalidCommand = candidate;
+                            break;
+                        }
+                        try {
+                            int result = dispatcher.execute(candidate, source);
+                            if (result <= 0) {
+                                invalidCommand = candidate;
+                                break;
+                            }
+                            failures.add(definition.id() + ", invalid input executed, " + candidate);
+                            invalidCommand = "";
+                            break;
+                        } catch (Exception exception) {
+                            invalidCommand = candidate;
+                            break;
+                        }
+                    }
+                    if (invalidCommand != null) {
+                        break;
+                    }
+                }
+                if (invalidCommand == null || invalidCommand.isBlank()) {
+                    continue;
+                }
+                if (covered.add(definition.id())) {
+                    CommandEffectEvidenceWriter.record(
+                            definition.id(),
+                            "metadataOnlyConsoleArgumentInvalidInputIsRejectedWithoutMutation",
+                            "failure",
+                            false,
+                            true,
+                            "invalid_input");
+                }
+                break;
+            }
+        }
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Metadata-only argument invalid input, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "metadata-only argument invalid input failed, "
+                        + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(!covered.isEmpty(), "no metadata-only argument invalid input routes were covered");
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Metadata-only argument invalid input covered {} action routes",
+                covered.size());
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void everyPlayerFacingActionCompilesToATypedWorkflow(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
@@ -1417,6 +1506,39 @@ public final class GuiWorkflowGameTests {
                         : representative(fields.get(segment.value())))
                 .reduce((left, right) -> left + " " + right)
                 .orElse("");
+    }
+
+    private static String renderWithFieldOverride(
+            GuiWorkflowCompiler.Variant variant,
+            String fieldId,
+            String invalidValue
+    ) {
+        var fields = variant.fields().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        GuiWorkflowCompiler.Field::id,
+                        field -> field));
+        return variant.segments().stream()
+                .map(segment -> segment.literal()
+                        ? segment.value()
+                        : segment.value().equals(fieldId)
+                        ? invalidValue
+                        : representative(fields.get(segment.value())))
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
+    }
+
+    private static List<String> invalidValues(GuiWorkflowCompiler.Field field) {
+        return switch (field.type()) {
+            case BOOLEAN -> List.of("not_boolean");
+            case INTEGER, DECIMAL -> List.of("not_number");
+            case DURATION -> List.of("not_duration");
+            case PLAYER, PLAYERS -> List.of("@[", "not-a-player");
+            case ITEM, ENCHANTMENT, DIMENSION, RESOURCE_LOCATION -> List.of("minecraft:not_real");
+            case COORDINATES -> List.of("not_coordinates");
+            case PERMISSION -> List.of("\"unterminated");
+            case IDENTIFIER -> List.of("not-a-uuid");
+            case TEXT -> List.of("\"unterminated", "__sef_invalid__ __sef_invalid__");
+        };
     }
 
     private static String render(GuiWorkflowCompiler.Variant variant, String playerValue) {
