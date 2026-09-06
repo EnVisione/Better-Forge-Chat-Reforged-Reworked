@@ -338,8 +338,13 @@ public final class GuiWorkflowGameTests {
                                 .equals(event.auditClass())
                         || event.normalizedParameters().values().stream()
                                 .anyMatch(value -> value.contains(command))) {
-                    failures.add(definition.id() + ", " + command + ", unsafe audit projection, result "
+                        failures.add(definition.id() + ", " + command + ", unsafe audit projection, result "
                             + result + ", audit result " + event.result() + ", reason " + event.reasonCode());
+                } else if (definition.auditClass() == AuditService.AuditClass.METADATA_ONLY
+                        && result > 0 && "success".equals(event.result())) {
+                    CommandEffectEvidenceWriter.recordReadOnly(
+                            definition.id(),
+                            "everyEnabledArgumentFreeConsoleRouteReadOnlyOracle");
                 }
             }
         }
@@ -1226,6 +1231,9 @@ public final class GuiWorkflowGameTests {
                 runtimeRow.addProperty("actorAttributed", actorAttributed);
                 runtimeRow.addProperty("correlationBound", correlationBound);
                 runtimeRows.add(runtimeRow);
+                CommandEffectEvidenceWriter.recordReadOnly(
+                        definition.id(),
+                        "everyMetadataOnlyConsoleVariantExecutesWithRepresentativeArguments");
             }
         }
 
@@ -1533,6 +1541,9 @@ public final class GuiWorkflowGameTests {
                 runtimeRow.addProperty("actorAttributed", actorAttributed);
                 runtimeRow.addProperty("correlationBound", correlationBound);
                 runtimeRows.add(runtimeRow);
+                CommandEffectEvidenceWriter.recordReadOnly(
+                        definition.id(),
+                        "metadataOnlyPlayerNoArgumentRoutesEmitBoundedAudit");
             }
 
             failures.forEach(failure ->

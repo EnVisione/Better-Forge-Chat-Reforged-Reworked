@@ -355,11 +355,14 @@ public final class UniversalCommandMatrixGenerator {
             add(dimensions, "linux_shared_runtime", "pass", "catalog-wide console route executed on the canonical Linux runtime", evidence);
         }
         if (effectEvidence.successful(action.get("semanticKey").getAsString())) {
+            String oracleClass = effectEvidence.oracleClass(action.get("semanticKey").getAsString());
             add(
                     dimensions,
                     "effect",
                     "pass",
-                    "candidate-bound dedicated-server GameTest observed the action-specific domain effect",
+                    "read_only".equals(oracleClass)
+                            ? "candidate-bound dedicated-server GameTest observed the action-specific read-only oracle"
+                            : "candidate-bound dedicated-server GameTest observed the action-specific domain effect",
                     "command-effect-runtime.json");
             add(
                     dimensions,
@@ -427,6 +430,11 @@ public final class UniversalCommandMatrixGenerator {
                             || !row.has("unchangedOnFailure") || !row.get("unchangedOnFailure").isJsonPrimitive()
                             || !row.getAsJsonPrimitive("unchangedOnFailure").isBoolean()
                             || !row.has("failureClass") || !row.get("failureClass").isJsonPrimitive()
+                            || row.has("oracleClass") && !Set.of("mutation", "read_only")
+                                    .contains(row.get("oracleClass").getAsString())
+                            || "read_only".equals(row.has("oracleClass")
+                                    ? row.get("oracleClass").getAsString() : "mutation")
+                                    && !"success".equals(result)
                             || !row.has("sourceType") || !row.get("sourceType").getAsString().equals("dedicated_server_gametest")
                             || !row.has("runtime") || !row.get("runtime").getAsString().equals("canonical_linux")
                             || !rowKeys.add(actionId + "\u0000" + testName)) {
@@ -444,6 +452,15 @@ public final class UniversalCommandMatrixGenerator {
             return rows.getOrDefault(actionId, List.of()).stream()
                     .anyMatch(row -> "success".equals(row.get("result").getAsString())
                             && row.get("effectObserved").getAsBoolean());
+        }
+
+        private String oracleClass(String actionId) {
+            return rows.getOrDefault(actionId, List.of()).stream()
+                    .filter(row -> "success".equals(row.get("result").getAsString())
+                            && row.get("effectObserved").getAsBoolean())
+                    .map(row -> row.has("oracleClass") ? row.get("oracleClass").getAsString() : "mutation")
+                    .findFirst()
+                    .orElse("mutation");
         }
 
         private boolean hasFailure(String actionId) {

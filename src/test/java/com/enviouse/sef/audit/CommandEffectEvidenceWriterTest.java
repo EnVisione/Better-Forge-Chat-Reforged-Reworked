@@ -48,6 +48,32 @@ class CommandEffectEvidenceWriterTest {
     }
 
     @Test
+    void recordsReadOnlyOracleSeparatelyFromMutationEvidence() throws Exception {
+        String oldRoot = System.getProperty("sef.audit.evidenceRoot");
+        String oldCommit = System.getProperty("sef.audit.candidateCommit");
+        String oldSha256 = System.getProperty("sef.audit.candidateSha256");
+        try {
+            System.setProperty("sef.audit.evidenceRoot", temporaryDirectory.toString());
+            System.setProperty("sef.audit.candidateCommit", "0123456789abcdef0123456789abcdef01234567");
+            System.setProperty("sef.audit.candidateSha256",
+                    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+            CommandEffectEvidenceWriter.recordReadOnly(
+                    "sef:config.status", "readOnlyRoute");
+
+            JsonObject row = JsonParser.parseString(Files.readString(
+                    temporaryDirectory.resolve("command-effect-runtime.json"), StandardCharsets.UTF_8))
+                    .getAsJsonObject().getAsJsonArray("rows").get(0).getAsJsonObject();
+            assertEquals("read_only", row.get("oracleClass").getAsString());
+            assertEquals("success", row.get("result").getAsString());
+            assertEquals(true, row.get("effectObserved").getAsBoolean());
+        } finally {
+            restore("sef.audit.evidenceRoot", oldRoot);
+            restore("sef.audit.candidateCommit", oldCommit);
+            restore("sef.audit.candidateSha256", oldSha256);
+        }
+    }
+
+    @Test
     void rejectsExistingEvidenceForAnotherCandidate() throws Exception {
         Path output = temporaryDirectory.resolve("command-effect-runtime.json");
         Files.writeString(output, "{\"schemaVersion\":1,\"candidateCommit\":\"wrong\","

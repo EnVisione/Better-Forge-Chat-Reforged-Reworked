@@ -32,6 +32,22 @@ public final class CommandEffectEvidenceWriter {
             boolean unchangedOnFailure,
             String failureClass
     ) {
+        record(actionId, testName, result, effectObserved, unchangedOnFailure, failureClass, "mutation");
+    }
+
+    public static synchronized void recordReadOnly(String actionId, String testName) {
+        record(actionId, testName, "success", true, false, "none", "read_only");
+    }
+
+    private static synchronized void record(
+            String actionId,
+            String testName,
+            String result,
+            boolean effectObserved,
+            boolean unchangedOnFailure,
+            String failureClass,
+            String oracleClass
+    ) {
         String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
         if (evidenceRoot.isEmpty()) {
             return;
@@ -43,7 +59,9 @@ public final class CommandEffectEvidenceWriter {
         }
         if (!actionId.matches("sef:[a-z0-9_.]+") || testName.isBlank()
                 || !Set.of("success", "failure").contains(result)
-                || failureClass.isBlank()) {
+                || failureClass.isBlank()
+                || !Set.of("mutation", "read_only").contains(oracleClass)
+                || "read_only".equals(oracleClass) && !"success".equals(result)) {
             throw new IllegalArgumentException("effect evidence row is invalid");
         }
         Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
@@ -68,6 +86,7 @@ public final class CommandEffectEvidenceWriter {
             row.addProperty("effectObserved", effectObserved);
             row.addProperty("unchangedOnFailure", unchangedOnFailure);
             row.addProperty("failureClass", failureClass);
+            row.addProperty("oracleClass", oracleClass);
             row.addProperty("sourceType", "dedicated_server_gametest");
             row.addProperty("runtime", "canonical_linux");
             rows.add(row);
@@ -118,6 +137,11 @@ public final class CommandEffectEvidenceWriter {
                     || !row.has("result") || !Set.of("success", "failure").contains(row.get("result").getAsString())
                     || !row.has("effectObserved") || !row.has("unchangedOnFailure")
                     || !row.has("failureClass")
+                    || row.has("oracleClass") && !Set.of("mutation", "read_only")
+                            .contains(row.get("oracleClass").getAsString())
+                    || "read_only".equals(row.has("oracleClass")
+                            ? row.get("oracleClass").getAsString() : "mutation")
+                            && !"success".equals(row.get("result").getAsString())
                     || !"dedicated_server_gametest".equals(row.get("sourceType").getAsString())
                     || !"canonical_linux".equals(row.get("runtime").getAsString())) {
                 throw new IllegalArgumentException("effect evidence row is invalid");
