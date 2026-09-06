@@ -372,6 +372,13 @@ public final class GuiWorkflowGameTests {
                 runtimeRows);
     }
 
+    private static void writeCatalogPlayerRuntimeEvidence(JsonArray runtimeRows) throws Exception {
+        writeCatalogRuntimeEvidence(
+                "catalog-player-runtime.json",
+                "metadataOnlyPlayerNoArgumentRoutesEmitBoundedAudit",
+                runtimeRows);
+    }
+
     private static void writeCatalogRuntimeEvidence(
             String fileName,
             String source,
@@ -1351,6 +1358,117 @@ public final class GuiWorkflowGameTests {
                 "[SEF] Metadata-only argument invalid input covered {} action routes",
                 covered.size());
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 600)
+    public static void metadataOnlyPlayerNoArgumentRoutesEmitBoundedAudit(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var player = helper.makeMockServerPlayerInLevel();
+        helper.runAfterDelay(20, () -> {
+            List<String> failures = new ArrayList<>();
+            Set<String> covered = new LinkedHashSet<>();
+            JsonArray runtimeRows = new JsonArray();
+
+            for (var definition : KernelServices.catalog().entries()) {
+                if (definition.auditClass() != AuditService.AuditClass.METADATA_ONLY
+                        || !definition.sourceTypes().contains(CommandDefinition.SourceType.PLAYER)
+                        || definition.id().equals("sef:utility.suicide")) {
+                    continue;
+                }
+                boolean enabled = KernelServices.featureGates().decide(
+                        definition.featureId(),
+                        FeatureGateService.Context.server(definition.id())).enabled();
+                if (!enabled) {
+                    continue;
+                }
+                GuiWorkflowCompiler.WorkflowDefinition workflow;
+                try {
+                    workflow = GuiWorkflowCompiler.compile(definition, dispatcher, player.createCommandSourceStack());
+                } catch (IllegalArgumentException exception) {
+                    continue;
+                }
+                var variant = workflow.variants().stream()
+                        .filter(candidate -> candidate.fields().isEmpty())
+                        .filter(candidate -> isCanonicalVariant(definition, candidate))
+                        .findFirst()
+                        .orElse(null);
+                if (variant == null) {
+                    continue;
+                }
+                String command = render(variant);
+                if (command.isBlank() || !covered.add(definition.id())) {
+                    continue;
+                }
+                Set<String> before = SecurityAuditService.recent(
+                                event -> event.actionId().equals(definition.id()),
+                                128)
+                        .stream()
+                        .map(SecurityAuditService.AuditEvent::eventId)
+                        .collect(java.util.stream.Collectors.toSet());
+                int result;
+                try {
+                    result = dispatcher.execute(command, player.createCommandSourceStack());
+                } catch (Exception exception) {
+                    covered.remove(definition.id());
+                    continue;
+                }
+                if (result <= 0) {
+                    continue;
+                }
+                List<SecurityAuditService.AuditEvent> events = SecurityAuditService.recent(
+                                event -> event.actionId().equals(definition.id())
+                                        && !before.contains(event.eventId()),
+                                16);
+                var event = events.stream().findFirst().orElse(null);
+                boolean redactionSafe = event != null
+                        && event.normalizedParameters().values().stream()
+                                .noneMatch(value -> value.contains(command));
+                if (event == null || events.size() != 1
+                        || !"player".equals(event.sourceType())
+                        || !player.getUUID().toString().equals(event.actorUuid())
+                        || player.getGameProfile().getName().isBlank()
+                        || !player.getGameProfile().getName().equals(event.actorUsername())
+                        || !"success".equals(event.result())
+                        || !"metadata_only".equals(event.auditClass())
+                        || !"metadata".equals(event.redactionClass())
+                        || !redactionSafe) {
+                    failures.add(definition.id() + ", " + command + ", unsafe player audit projection");
+                    continue;
+                }
+                JsonObject runtimeRow = new JsonObject();
+                runtimeRow.addProperty("actionId", definition.id());
+                runtimeRow.addProperty("canonicalRoute", definition.canonicalRoute());
+                runtimeRow.addProperty("commandDigest", digest(command));
+                runtimeRow.addProperty("result", "success");
+                runtimeRow.addProperty("auditEventCount", events.size());
+                runtimeRow.addProperty("sourceType", event.sourceType());
+                runtimeRow.addProperty("auditResult", event.result());
+                runtimeRow.addProperty("auditClass", event.auditClass());
+                runtimeRow.addProperty("redactionClass", event.redactionClass());
+                runtimeRows.add(runtimeRow);
+            }
+
+            failures.forEach(failure ->
+                    ServerEssentialsForge.LOGGER.error("[SEF] Metadata-only player route, {}", failure));
+            helper.assertTrue(
+                    failures.isEmpty(),
+                    "metadata-only player audit failed, "
+                            + String.join("; ", failures.stream().limit(8).toList()));
+            helper.assertTrue(!runtimeRows.isEmpty(), "no metadata-only player routes produced runtime evidence");
+            try {
+                writeCatalogPlayerRuntimeEvidence(runtimeRows);
+            } catch (Exception exception) {
+                helper.fail("catalog player runtime evidence could not be written, "
+                        + exception.getClass().getSimpleName());
+                return;
+            }
+            ServerEssentialsForge.LOGGER.info(
+                    "[SEF] Metadata-only player routes covered {}, evidence rows {}",
+                    covered.size(),
+                    runtimeRows.size());
+            helper.succeed();
+        });
     }
 
     @GameTest(template = "empty", timeoutTicks = 200)

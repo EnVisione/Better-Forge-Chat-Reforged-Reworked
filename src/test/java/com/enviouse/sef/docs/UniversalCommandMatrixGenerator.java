@@ -470,7 +470,8 @@ public final class UniversalCommandMatrixGenerator {
                 Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
                 for (String fileName : List.of(
                         "catalog-console-runtime.json",
-                        "catalog-console-argument-runtime.json")) {
+                        "catalog-console-argument-runtime.json",
+                        "catalog-player-runtime.json")) {
                     Path file = root.resolve(fileName);
                     if (!Files.isRegularFile(file) || Files.isSymbolicLink(file)) {
                         continue;
@@ -489,7 +490,7 @@ public final class UniversalCommandMatrixGenerator {
                         String actionId = row.get("actionId").getAsString();
                         if (!row.get("result").getAsString().equals("success")
                                 || row.get("auditEventCount").getAsInt() != 1
-                                || !row.get("sourceType").getAsString().equals("console")
+                                || !Set.of("console", "player").contains(row.get("sourceType").getAsString())
                                 || !row.get("auditResult").getAsString().equals("success")
                                 || !row.get("auditClass").getAsString().equals("metadata_only")
                                 || !row.get("redactionClass").getAsString().equals("metadata")
@@ -523,7 +524,6 @@ public final class UniversalCommandMatrixGenerator {
         private static boolean sameProjection(JsonObject first, JsonObject second) {
             return first.get("result").equals(second.get("result"))
                     && first.get("auditEventCount").equals(second.get("auditEventCount"))
-                    && first.get("sourceType").equals(second.get("sourceType"))
                     && first.get("auditResult").equals(second.get("auditResult"))
                     && first.get("auditClass").equals(second.get("auditClass"))
                     && first.get("redactionClass").equals(second.get("redactionClass"));
