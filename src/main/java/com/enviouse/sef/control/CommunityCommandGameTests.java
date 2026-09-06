@@ -182,7 +182,7 @@ public final class CommunityCommandGameTests {
                 int requestResult = executeWithPermissions(
                         helper,
                         actor,
-                        "friend add @p[distance=90..110]");
+                        "friend add " + selectorFor(target));
                 helper.assertTrue(requestResult > 0, "friend request did not report success");
                 helper.assertTrue(
                         KernelServices.communityState()
@@ -200,7 +200,7 @@ public final class CommunityCommandGameTests {
                 int acceptResult = executeWithPermissions(
                         helper,
                         target,
-                        "friend accept @p[distance=90..110]");
+                        "friend accept " + selectorFor(actor));
                 helper.assertTrue(acceptResult > 0, "friend acceptance did not report success");
                 helper.assertTrue(
                         KernelServices.communityState()
@@ -223,7 +223,7 @@ public final class CommunityCommandGameTests {
                 int removeResult = executeWithPermissions(
                         helper,
                         actor,
-                        "friend remove @p[distance=90..110]");
+                        "friend remove " + selectorFor(target));
                 helper.assertTrue(removeResult > 0, "friend removal did not report success");
                 helper.assertTrue(
                         KernelServices.communityState()
@@ -267,5 +267,12 @@ public final class CommunityCommandGameTests {
             helper.fail("community command syntax was rejected, " + exception.getMessage());
             return 0;
         }
+    }
+
+    private static String selectorFor(ServerPlayer player) {
+        return "@p[x=" + Math.floor(player.getX())
+                + ",y=" + Math.floor(player.getY())
+                + ",z=" + Math.floor(player.getZ())
+                + ",distance=..2]";
     }
 }
