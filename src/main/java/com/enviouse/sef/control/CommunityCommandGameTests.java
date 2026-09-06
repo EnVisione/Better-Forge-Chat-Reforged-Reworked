@@ -200,7 +200,7 @@ public final class CommunityCommandGameTests {
                 int acceptResult = executeWithPermissions(
                         helper,
                         target,
-                        "friend accept " + actor.getGameProfile().getName());
+                        "friend accept @p[distance=90..110]");
                 helper.assertTrue(acceptResult > 0, "friend acceptance did not report success");
                 helper.assertTrue(
                         KernelServices.communityState()
