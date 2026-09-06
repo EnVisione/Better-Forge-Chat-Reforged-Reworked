@@ -86,13 +86,13 @@ public final class AdminLockGameTests {
         Set<CommandDefinition.AccessClass> originalRequiredClasses =
                 Set.copyOf(KernelServices.adminLockRepository().requiredClasses());
         try {
-            int statusResult = execute(helper, player, "adminlock status", "status");
+            int statusResult = execute(helper, player, "adminlock status", "status.self");
             helper.assertTrue(statusResult > 0, "admin lock status command did not report success");
             CommandEffectEvidenceWriter.recordReadOnly(
                     "sef:adminlock.status",
                     "adminLockSessionPolicyAndRecoveryRoutesPersistEffects");
 
-            int historyResult = execute(helper, player, "adminlock history", "history");
+            int historyResult = execute(helper, player, "adminlock history", "history.self");
             helper.assertTrue(historyResult > 0, "admin lock history command did not report success");
             CommandEffectEvidenceWriter.recordReadOnly(
                     "sef:adminlock.history",
