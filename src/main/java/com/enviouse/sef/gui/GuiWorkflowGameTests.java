@@ -1306,7 +1306,7 @@ public final class GuiWorkflowGameTests {
                 }
                 String invalidCommand = null;
                 for (var field : variant.fields()) {
-                    for (String invalidValue : invalidValues(field)) {
+                    for (String invalidValue : invalidValues(definition.id(), field)) {
                         String candidate = renderWithFieldOverride(variant, field.id(), invalidValue);
                         ParseResults<CommandSourceStack> parsed = dispatcher.parse(candidate, source);
                         if (!parsed.getExceptions().isEmpty() || parsed.getReader().canRead()) {
@@ -1547,12 +1547,14 @@ public final class GuiWorkflowGameTests {
                         ParseResults<CommandSourceStack> missingArgument = dispatcher.parse(
                                 missingArgumentCommand,
                                 player.createCommandSourceStack());
-                        if (!missingArgument.getExceptions().isEmpty() || missingArgument.getReader().canRead()) {
+                        if (!missingArgument.getExceptions().isEmpty()
+                                || missingArgument.getReader().canRead()
+                                || missingArgument.getContext().getCommand() == null) {
                             invalidCommand = missingArgumentCommand;
                             break;
                         }
                         for (var field : variant.fields()) {
-                            for (String invalidValue : invalidValues(field)) {
+                            for (String invalidValue : invalidValues(definition.id(), field)) {
                                 String candidate = renderWithFieldOverride(variant, field.id(), invalidValue);
                                 ParseResults<CommandSourceStack> parsed = dispatcher.parse(
                                         candidate,
@@ -1784,7 +1786,14 @@ public final class GuiWorkflowGameTests {
                 .orElse("");
     }
 
-    private static List<String> invalidValues(GuiWorkflowCompiler.Field field) {
+    private static List<String> invalidValues(
+            String actionId,
+            GuiWorkflowCompiler.Field field
+    ) {
+        if ("sef:identity.nick".equals(actionId)
+                && field.type() == GuiWorkflowCompiler.FieldType.TEXT) {
+            return List.of("x".repeat(513));
+        }
         return switch (field.type()) {
             case BOOLEAN -> List.of("not_boolean");
             case INTEGER, DECIMAL -> List.of("not_number");
