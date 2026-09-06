@@ -171,6 +171,15 @@ class UniversalCommandMatrixGeneratorTest {
                     .getAsJsonObject("audit").get("status").getAsString());
             assertEquals("pass", action.getAsJsonObject("dimensions")
                     .getAsJsonObject("linux_shared_runtime").get("status").getAsString());
+            assertEquals("pass", action.getAsJsonObject("dimensions")
+                    .getAsJsonObject("effect").get("status").getAsString());
+            assertEquals(
+                    "catalog-console-runtime.json",
+                    action.getAsJsonObject("dimensions")
+                            .getAsJsonObject("effect")
+                            .getAsJsonArray("evidence")
+                            .get(0)
+                            .getAsString());
             JsonObject argumentAction = matrix.getAsJsonArray("rows").asList().stream()
                     .map(JsonElement::getAsJsonObject)
                     .filter(value -> value.get("semanticKey").getAsString().equals("sef:gui.client.status"))

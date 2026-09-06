@@ -325,7 +325,16 @@ public final class UniversalCommandMatrixGenerator {
         add(dimensions, "preview", "partial", "confirmation and revision contracts are covered for selected routes", "task-028-universal-matrix-ledger.md");
         String auditClass = action.get("auditClass").getAsString();
         if (auditClass.equals("metadata_only")) {
-            add(dimensions, "effect", "partial", "358 read-only routes executed but not mapped to every action row", "task-024-remediation-gametest.log");
+            if (runtimeEvidence.successful(action.get("semanticKey").getAsString())) {
+                add(
+                        dimensions,
+                        "effect",
+                        "pass",
+                        "candidate-bound live metadata route returned a successful bounded projection with one correlated audit event",
+                        runtimeEvidence.evidenceFor(action.get("semanticKey").getAsString()));
+            } else {
+                add(dimensions, "effect", "partial", "metadata-only route lacks candidate-bound action execution evidence", "task-024-remediation-gametest.log");
+            }
         } else {
             add(dimensions, "effect", "open", "action-specific mutation oracle is required", "task-028-universal-matrix-ledger.md");
         }
