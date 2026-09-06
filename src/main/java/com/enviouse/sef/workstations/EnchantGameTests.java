@@ -92,7 +92,7 @@ public final class EnchantGameTests {
 
         int result;
         try {
-            result = executeEnchant(helper, player, "sef enchant self minecraft:sharpness 3");
+            result = executeEnchant(helper, player, "enchant minecraft:sharpness 3");
         } catch (IllegalStateException exception) {
             helper.fail("administrative enchant command failed through the live dispatcher");
             return;
@@ -121,7 +121,7 @@ public final class EnchantGameTests {
         int result;
 
         try {
-            result = executeEnchant(helper, player, "sef enchant self minecraft:sharpness 3");
+            result = executeEnchant(helper, player, "enchant minecraft:sharpness 3");
         } catch (IllegalStateException exception) {
             helper.fail("administrative enchant failure route could not be dispatched");
             return;
