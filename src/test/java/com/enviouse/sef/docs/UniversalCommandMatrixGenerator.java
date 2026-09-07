@@ -55,6 +55,7 @@ public final class UniversalCommandMatrixGenerator {
         RuntimeEvidence runtimeEvidence = RuntimeEvidence.load();
         EffectEvidence effectEvidence = EffectEvidence.load();
         UnavailableEvidence unavailableEvidence = UnavailableEvidence.load();
+        ClientFixtureEvidence clientFixtureEvidence = ClientFixtureEvidence.load();
         JsonArray sourceRows = inventory.getAsJsonArray("rows");
         Map<String, JsonObject> actions = new LinkedHashMap<>();
         Map<String, List<String>> routes = new LinkedHashMap<>();
@@ -75,7 +76,8 @@ public final class UniversalCommandMatrixGenerator {
                     action,
                     routes.getOrDefault(action.get("semanticKey").getAsString(), List.of()),
                     runtimeEvidence,
-                    effectEvidence));
+                    effectEvidence,
+                    clientFixtureEvidence));
         }
         for (JsonElement element : sourceRows) {
             JsonObject row = element.getAsJsonObject();
@@ -260,7 +262,8 @@ public final class UniversalCommandMatrixGenerator {
             JsonObject action,
             List<String> routeList,
             RuntimeEvidence runtimeEvidence,
-            EffectEvidence effectEvidence
+            EffectEvidence effectEvidence,
+            ClientFixtureEvidence clientFixtureEvidence
     ) {
         String actionId = action.get("semanticKey").getAsString();
         JsonObject row = baseRow("command-matrix", actionId, "static", "incomplete");
@@ -280,7 +283,7 @@ public final class UniversalCommandMatrixGenerator {
         action.getAsJsonArray("convenienceRoots").forEach(orderedRoutes::add);
         row.add("orderedRoutes", orderedRoutes);
         row.add("auditJoin", auditJoin(action));
-        JsonObject dimensions = commandDimensions(action, runtimeEvidence, effectEvidence);
+        JsonObject dimensions = commandDimensions(action, runtimeEvidence, effectEvidence, clientFixtureEvidence);
         row.add("dimensions", dimensions);
         row.addProperty("status", rowStatus(dimensions));
         return row;
@@ -312,7 +315,8 @@ public final class UniversalCommandMatrixGenerator {
     private static JsonObject commandDimensions(
             JsonObject action,
             RuntimeEvidence runtimeEvidence,
-            EffectEvidence effectEvidence
+            EffectEvidence effectEvidence,
+            ClientFixtureEvidence clientFixtureEvidence
     ) {
         JsonObject dimensions = new JsonObject();
         add(dimensions, "registration", "pass", "live catalog and dispatcher route ownership", "task-025-inventory/command-inventory-live.json");
@@ -344,7 +348,12 @@ public final class UniversalCommandMatrixGenerator {
         add(dimensions, "feedback", "partial", "catalog-wide rejection and shared executor outcome handling are covered, but route-specific success presentation and distinct domain failure feedback remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
         add(dimensions, "audit", "partial", "catalog-wide rejection and shared executor success or failure outcomes have per-action correlation, but domain effect and sink-specific joins remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
         add(dimensions, "redaction", "partial", "catalog-wide rejection and shared executor outcomes keep normalized metadata bounded, but per-action sensitive fields and success projections remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
-        add(dimensions, "client_fixture", "partial", "packaged client load and connection pass; full action interaction is open", "task-024-client-crash-remediation-report.md");
+        add(
+                dimensions,
+                "client_fixture",
+                clientFixtureEvidence.status(action.get("semanticKey").getAsString()),
+                clientFixtureEvidence.reason(action.get("semanticKey").getAsString()),
+                clientFixtureEvidence.evidenceFor(action.get("semanticKey").getAsString()));
         add(dimensions, "linux_shared_runtime", "partial", "dedicated server, representative runtime, catalog feedback and audit boundary, and shared executor outcome checks pass; universal effects remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
         add(dimensions, "host_specific_runtime", "not_applicable", "no macOS or Windows non-client host-specific path changed or exercised", "task-025-audit-inventory-report.md");
         add(dimensions, "native_dependency", "partial", "candidate dependency, native writer identity, duplicate-runtime inspection, and shared executor audit joins pass; domain action sink joins remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
@@ -559,6 +568,118 @@ public final class UniversalCommandMatrixGenerator {
             return first.get("auditEventCount").equals(second.get("auditEventCount"))
                     && first.get("auditClass").equals(second.get("auditClass"))
                     && first.get("redactionClass").equals(second.get("redactionClass"));
+        }
+
+        private static boolean booleanProperty(JsonObject row, String name) {
+            return row.has(name)
+                    && row.get(name).isJsonPrimitive()
+                    && row.getAsJsonPrimitive(name).isBoolean()
+                    && row.get(name).getAsBoolean();
+        }
+    }
+
+    private record ClientFixtureEvidence(
+            boolean packageLoaded,
+            boolean serverJoined,
+            boolean renderedWorld,
+            Map<String, JsonObject> actionRows,
+            String evidenceSource
+    ) {
+        private static ClientFixtureEvidence load() {
+            String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
+            String expectedCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
+            String expectedSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
+            if (evidenceRoot.isEmpty() || expectedCommit.isEmpty() || expectedSha256.isEmpty()) {
+                return new ClientFixtureEvidence(false, false, false, Map.of(),
+                        "task-024-client-crash-remediation-report.md");
+            }
+            Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
+            Path file = root.resolve("client-fixture.json");
+            if (!Files.exists(file)) {
+                return new ClientFixtureEvidence(false, false, false, Map.of(),
+                        "task-024-client-crash-remediation-report.md");
+            }
+            try {
+                if (!Files.isRegularFile(file) || Files.isSymbolicLink(file)) {
+                    throw new IllegalArgumentException("client fixture evidence target is invalid");
+                }
+                JsonObject record = JsonParser.parseString(
+                        Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+                if (!record.has("schemaVersion") || record.get("schemaVersion").getAsInt() != 1
+                        || !record.has("candidateCommit")
+                        || !expectedCommit.equals(record.get("candidateCommit").getAsString())
+                        || !expectedCommit.matches("[0-9a-f]{40}")
+                        || !record.has("candidateSha256")
+                        || !expectedSha256.equals(record.get("candidateSha256").getAsString())
+                        || !expectedSha256.matches("[0-9a-f]{64}")
+                        || !record.has("source")
+                        || !"minecraft-java-client-fixture".equals(record.get("source").getAsString())
+                        || !record.has("runtime")
+                        || !record.get("runtime").getAsString().equals("authorized-linux-laptop")
+                        || !booleanProperty(record, "packageLoaded")
+                        || !booleanProperty(record, "serverJoined")
+                        || !booleanProperty(record, "renderedWorld")
+                        || !record.has("evidence") || !record.get("evidence").isJsonPrimitive()
+                        || record.get("evidence").getAsString().isBlank()
+                        || !record.has("rows") || !record.get("rows").isJsonArray()) {
+                    throw new IllegalArgumentException("client fixture evidence identity or shape is invalid");
+                }
+                Map<String, JsonObject> actionRows = new LinkedHashMap<>();
+                for (JsonElement element : record.getAsJsonArray("rows")) {
+                    JsonObject row = element.getAsJsonObject();
+                    if (!row.has("actionId") || !row.get("actionId").isJsonPrimitive()
+                            || !row.get("actionId").getAsString().matches("sef:[a-z0-9_.]+")
+                            || !row.has("result") || !row.get("result").isJsonPrimitive()
+                            || !Set.of("success", "client_tree_rejected", "open").contains(row.get("result").getAsString())
+                            || !row.has("packetReachedServer")
+                            || !row.get("packetReachedServer").isJsonPrimitive()
+                            || !row.getAsJsonPrimitive("packetReachedServer").isBoolean()
+                            || !row.has("feedbackObserved")
+                            || !row.get("feedbackObserved").isJsonPrimitive()
+                            || !row.getAsJsonPrimitive("feedbackObserved").isBoolean()
+                            || !row.has("reason") || !row.get("reason").isJsonPrimitive()
+                            || row.get("reason").getAsString().isBlank()
+                            || actionRows.putIfAbsent(row.get("actionId").getAsString(), row) != null) {
+                        throw new IllegalArgumentException("client fixture evidence row is invalid");
+                    }
+                    if ("success".equals(row.get("result").getAsString())
+                            && (!row.get("packetReachedServer").getAsBoolean()
+                            || !row.get("feedbackObserved").getAsBoolean())) {
+                        throw new IllegalArgumentException("successful client fixture row lacks feedback and transmission");
+                    }
+                }
+                return new ClientFixtureEvidence(
+                        true,
+                        true,
+                        true,
+                        Map.copyOf(actionRows),
+                        record.get("evidence").getAsString());
+            } catch (RuntimeException | IOException exception) {
+                throw new IllegalStateException("client fixture evidence is invalid", exception);
+            }
+        }
+
+        private String status(String actionId) {
+            JsonObject row = actionRows.get(actionId);
+            if (row != null && "success".equals(row.get("result").getAsString())) {
+                return "pass";
+            }
+            return "partial";
+        }
+
+        private String reason(String actionId) {
+            JsonObject row = actionRows.get(actionId);
+            if (row != null) {
+                return row.get("reason").getAsString();
+            }
+            if (packageLoaded && serverJoined && renderedWorld) {
+                return "candidate-bound Minecraft Java client loaded and joined the canonical server; action-specific client feedback remains open";
+            }
+            return "candidate-bound Minecraft Java client fixture evidence is missing";
+        }
+
+        private String evidenceFor(String actionId) {
+            return evidenceSource;
         }
 
         private static boolean booleanProperty(JsonObject row, String name) {

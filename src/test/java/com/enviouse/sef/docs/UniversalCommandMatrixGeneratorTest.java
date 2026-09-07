@@ -262,6 +262,56 @@ class UniversalCommandMatrixGeneratorTest {
     }
 
     @Test
+    void matrixConsumesCandidateBoundMinecraftClientFixtureEvidence() throws Exception {
+        Path evidence = temporaryDirectory.resolve("client-fixture-evidence");
+        Files.createDirectories(evidence);
+        JsonObject record = new JsonObject();
+        record.addProperty("schemaVersion", 1);
+        record.addProperty("candidateCommit", "0123456789abcdef0123456789abcdef01234567");
+        record.addProperty("candidateSha256", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        record.addProperty("source", "minecraft-java-client-fixture");
+        record.addProperty("runtime", "authorized-linux-laptop");
+        record.addProperty("packageLoaded", true);
+        record.addProperty("serverJoined", true);
+        record.addProperty("renderedWorld", true);
+        record.addProperty("evidence", "client-fixture-report.md");
+        JsonObject row = new JsonObject();
+        row.addProperty("actionId", "sef:core.doctor");
+        row.addProperty("result", "client_tree_rejected");
+        row.addProperty("packetReachedServer", false);
+        row.addProperty("feedbackObserved", true);
+        row.addProperty("reason", "protected permission was not projected");
+        record.add("rows", new com.google.gson.JsonArray());
+        record.getAsJsonArray("rows").add(row);
+        Files.writeString(
+                evidence.resolve("client-fixture.json"),
+                record.toString(),
+                StandardCharsets.UTF_8);
+        String oldRoot = System.getProperty("sef.audit.evidenceRoot");
+        String oldCommit = System.getProperty("sef.audit.candidateCommit");
+        String oldSha256 = System.getProperty("sef.audit.candidateSha256");
+        try {
+            System.setProperty("sef.audit.evidenceRoot", evidence.toString());
+            System.setProperty("sef.audit.candidateCommit", record.get("candidateCommit").getAsString());
+            System.setProperty("sef.audit.candidateSha256", record.get("candidateSha256").getAsString());
+            JsonObject matrix = UniversalCommandMatrixGenerator.generate();
+            JsonObject doctor = matrix.getAsJsonArray("rows").asList().stream()
+                    .map(JsonElement::getAsJsonObject)
+                    .filter(value -> value.get("semanticKey").getAsString().equals("sef:core.doctor"))
+                    .findFirst()
+                    .orElseThrow();
+            JsonObject client = doctor.getAsJsonObject("dimensions").getAsJsonObject("client_fixture");
+            assertEquals("partial", client.get("status").getAsString());
+            assertEquals("protected permission was not projected", client.get("reason").getAsString());
+            assertEquals("client-fixture-report.md", client.getAsJsonArray("evidence").get(0).getAsString());
+        } finally {
+            restoreProperty("sef.audit.evidenceRoot", oldRoot);
+            restoreProperty("sef.audit.candidateCommit", oldCommit);
+            restoreProperty("sef.audit.candidateSha256", oldSha256);
+        }
+    }
+
+    @Test
     void unavailableRowsRemainPartialWithoutCandidateBoundEvidence() {
         String oldRoot = System.getProperty("sef.audit.evidenceRoot");
         String oldCommit = System.getProperty("sef.audit.candidateCommit");
